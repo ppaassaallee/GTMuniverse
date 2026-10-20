@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { addCommitteeMember, addSignal, assignToPod, briefAccount, setStage } from "@/app/actions";
+import { addCommitteeMember, addSignal, assignToPod, draftEmail, freezeAccount, setStage, writeBrief } from "@/app/actions";
 import { ActionForm } from "@/components/ActionForm";
 import { DestPill, PageHead, SourceChips, STAGE_LABEL, TierPill, ValuePill } from "@/components/ui";
-import { grokConfigured } from "@/lib/grok";
 import { scoreAll } from "@/lib/routing";
 import { FIT_WEIGHTS } from "@/lib/scoring";
 import { readDb } from "@/lib/store";
@@ -25,6 +24,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
   const rule = db.rules.find((r) => r.id === a.routing?.ruleId);
   const pod = db.pods.find((p) => p.id === a.routing?.podId);
   const now = Date.now();
+  const drafts = db.approvals.filter((x) => x.action.accountId === a.id && x.action.type === "draft_email").slice(0, 3);
 
   return (
     <>
@@ -48,21 +48,55 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
       </p>
 
       <div className="split">
-        <section className="panel">
-          <div className="panel-h"><h2>Account brief</h2>{a.brief ? <span className="muted small">By {a.brief.model} · {new Date(a.brief.generatedAt).toLocaleString("en-US")}</span> : null}</div>
-          {!grokConfigured() ? <p className="notice">Grok isn't connected yet. Set XAI_API_KEY on the server to generate briefs.</p> : null}
-          {a.brief ? (
-            <div className="brief">
-              <div><span className="label">Why it fits</span><p>{a.brief.whyFit}</p></div>
-              <div><span className="label">Why now</span><p>{a.brief.whyNow}</p></div>
-              <div><span className="label">Buying committee</span><p>{a.brief.committee}</p></div>
-              <div><span className="label">Commercial hypothesis</span><p>{a.brief.hypothesis}</p></div>
-              <div><span className="label">Play</span><p>{play ? `${play.id} · ${play.name}. ${play.firstTouch}` : "No play fits yet."}</p></div>
-              <div><span className="label">Next action</span><p><b>{a.brief.nextAction}</b></p></div>
-            </div>
-          ) : <p className="muted" style={{ margin: 0 }}>No brief yet. The Researcher bot writes why it fits, why now, who to contact, the play and the next action, using only what's on this page. The Writer drafts the first email, which waits in Approvals.</p>}
-          <ActionForm action={briefAccount} submitLabel={a.brief ? "Regenerate with Grok" : "Research with Grok"} pendingLabel="Researcher is working…"><input type="hidden" name="accountId" value={a.id} /></ActionForm>
-        </section>
+        <div style={{ display: "grid", gap: 14, alignContent: "start" }}>
+          <section className="panel">
+            <div className="panel-h"><h2>Account brief</h2>{a.brief ? <span className="muted small">By {a.brief.model} · {new Date(a.brief.generatedAt).toLocaleString("en-US")}</span> : null}</div>
+            {a.brief ? (
+              <div className="brief">
+                <div><span className="label">Why it fits</span><p>{a.brief.whyFit}</p></div>
+                <div><span className="label">Why now</span><p>{a.brief.whyNow}</p></div>
+                <div><span className="label">Buying committee</span><p>{a.brief.committee}</p></div>
+                <div><span className="label">Commercial hypothesis</span><p>{a.brief.hypothesis}</p></div>
+                <div><span className="label">Play</span><p>{play ? `${play.id} · ${play.name}. ${play.firstTouch}` : "No play fits yet."}</p></div>
+                <div><span className="label">Next action</span><p><b>{a.brief.nextAction}</b></p></div>
+              </div>
+            ) : <p className="muted" style={{ margin: 0 }}>No brief yet. Your Research Grokbot posts it here: why it fits, why now, who to contact, the play and the next action.</p>}
+            <details>
+              <summary className="small">{a.brief ? "Update the brief" : "Write the brief"}</summary>
+              <ActionForm action={writeBrief} submitLabel="Save brief" secondary>
+                <input type="hidden" name="accountId" value={a.id} />
+                <div><label htmlFor="whyFit">Why it fits</label><textarea id="whyFit" name="whyFit" defaultValue={a.brief?.whyFit} /></div>
+                <div><label htmlFor="whyNow">Why now</label><textarea id="whyNow" name="whyNow" defaultValue={a.brief?.whyNow} /></div>
+                <div><label htmlFor="bcommittee">Buying committee</label><textarea id="bcommittee" name="committee" defaultValue={a.brief?.committee} /></div>
+                <div><label htmlFor="hypothesis">Commercial hypothesis</label><textarea id="hypothesis" name="hypothesis" defaultValue={a.brief?.hypothesis} /></div>
+                <div className="row">
+                  <div><label htmlFor="playId">Play</label><select id="playId" name="playId" defaultValue={a.brief?.playId || ""}><option value="">No play yet</option>{g.plays.map((p) => <option key={p.id} value={p.id}>{p.id} · {p.name}</option>)}</select></div>
+                  <div><label htmlFor="nextAction">Next action</label><input id="nextAction" name="nextAction" defaultValue={a.brief?.nextAction} /></div>
+                </div>
+              </ActionForm>
+            </details>
+          </section>
+
+          <section className="panel">
+            <h2>First-touch draft</h2>
+            <p className="muted small" style={{ margin: 0 }}>A Grokbot's draft always waits in Approvals. A person sends it from your own email; Boldr never sends.</p>
+            {drafts.map((d) => (
+              <div key={d.id} className="notice" style={{ margin: 0 }}>
+                <b>{String(d.action.payload?.subject || d.action.summary)}</b> <span className={`pill ${d.status === "approved" ? "ok" : d.status === "rejected" ? "no" : "warn"}`}>{d.status}</span>
+                <div className="small" style={{ whiteSpace: "pre-wrap", marginTop: 4 }}>{String(d.action.payload?.body || "")}</div>
+                <span className="muted small">{db.bots.find((b) => b.id === d.botId)?.name} · {new Date(d.createdAt).toLocaleString("en-US")}</span>
+              </div>
+            ))}
+            <details>
+              <summary className="small">Post a draft</summary>
+              <ActionForm action={draftEmail} submitLabel="Post draft" secondary>
+                <input type="hidden" name="accountId" value={a.id} />
+                <div><label htmlFor="subject">Subject</label><input id="subject" name="subject" /></div>
+                <div><label htmlFor="body">Body</label><textarea id="body" name="body" /></div>
+              </ActionForm>
+            </details>
+          </section>
+        </div>
 
         <div style={{ display: "grid", gap: 14 }}>
           <section className="panel">
@@ -73,6 +107,10 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
                 <div><label htmlFor="podId">Pod</label><select id="podId" name="podId" defaultValue={a.routing?.podId || ""}><option value="">Unassigned</option>{db.pods.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.kind}</option>)}</select></div>
                 <div><label htmlFor="owner">Owner (optional)</label><input id="owner" name="owner" defaultValue={a.routing?.owner || ""} /></div>
               </div>
+            </ActionForm>
+            <ActionForm action={freezeAccount} submitLabel="Move to the freezer" secondary>
+              <input type="hidden" name="accountId" value={a.id} />
+              <div><label htmlFor="thaw">Thaws when</label><input id="thaw" name="thaw" placeholder="A new hiring spike, or in 90 days" /></div>
             </ActionForm>
           </section>
 

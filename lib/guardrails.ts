@@ -1,6 +1,6 @@
 import type { Account, ActionType, Activity, Bot, Connection, ProposedAction, Verdict } from "./types";
 
-// Every action a Grokbot proposes passes through this check before anything happens.
+// Every change a signed-in Grokbot makes passes through this check before anything happens.
 // The order matters: hard blocks first, then the conditions that need a human, then autonomy.
 
 /** Actions that end in a message leaving the building. A person approves, whatever the bot's autonomy. */
@@ -25,6 +25,7 @@ export const ACTION_LABEL: Record<ActionType, string> = {
   assign_pod: "Assign to a pod",
   freeze_account: "Move to the freezer",
   refresh_tower: "Refresh the Control Tower",
+  create_account: "Add an account to the universe",
 };
 
 export interface GuardrailContext {

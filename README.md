@@ -1,58 +1,80 @@
-# Boldr
+# Boldr: the GTM management layer
 
-The GTM engineering system for B2B teams. Boldr turns raw account supply into SDR-ready opportunities and gives leaders an expert board to think with. Grok (xAI) is the AI backend.
+Boldr is where a B2B go-to-market team keeps everything in one place: how it goes to market, which Grokbots do the work, what they're allowed to touch, the universe of accounts, the human pods that sell, and the numbers that say whether it works.
 
-It productizes the Solvo GTM Engineering System: one deduplicated account universe, fit / signal / value scoring, tiers and an MQL gate, AI account briefs, a play library, and a control tower measured on closed-won revenue per 100 MQLs. Solvo ships as the demo workspace.
+Boldr has no AI inside it and calls no AI service. Your Grokbots run on Grok outside Boldr and are the semantic layer. They **sign in like people do**, read the GTM definitions, policies and knowledge base, and post their work back: new accounts, signals, briefs, drafts, pod moves and Control Tower findings. Boldr's job is to manage them. It decides with guardrails what each one may change, and it keeps the record.
 
-## What's in it
+## The six stages
 
-| Screen | What it does |
-| --- | --- |
-| Control Tower | Revenue per 100 MQLs, MQLs per closed-won deal, fit × signal matrix, funnel, Tier A work queue, lead factories |
-| Universe | Every account, deduplicated by domain, sorted by tier, value, signal and fit. Add accounts. |
-| Account | Score breakdown, dated signals with decay, buying committee, stage, and a Grok-written brief: why it fits, why now, committee, hypothesis, play, next action, draft email |
-| Expert Board | Eight advisors modelled on leading GTM voices' frameworks. Grok answers with your workspace and live pipeline loaded, then agrees on a first week. |
-| Workspace | Company context, ICP verticals, play library, signal weights, tier thresholds, decay window |
+1. **GTMs**. Each GTM is defined like a project:
+   - ICP verticals and buyer personas
+   - signals and scoring weights
+   - playbooks, sequences and scripts
+   - policies and buying stages, plus best practices from 6sense, ZoomInfo and Apollo
+   - a knowledge base (value propositions, objections, case studies, competitors)
 
-## Scoring
+   Everything is shown graphically.
+2. **Squads**. This is a registry of your Grokbots, grouped into squads. Each bot has:
+   - skills
+   - a boss (chain of command up to a person)
+   - an autonomy level (`suggest`, `approve` or `act`)
+   - a permission list, granted connections and a daily limit
+   - its own sign-in code
+3. **Connections**. LinkedIn, Apollo, Salesforce, TheirStack, Google Sheets, OneDrive and email. Your Grokbots reach these tools themselves. Boldr records which bot may use which tool and whether the connection is on. LinkedIn is a human channel: bots prepare the work and people send it.
+4. **Universe**. All accounts, built from the Solvo Universe model:
+   - fit × signal tiers and a signal inbox
+   - smart and static lists
+   - routing rules with a dry run before you apply them
+   - the freezer, with a thaw condition for each frozen account
+5. **Pods**. Accounts are assigned to human SDR, BDR and Business Consultant pods by vertical focus and free capacity.
+6. **Control Tower**. Revenue per 100 MQLs, the funnel, the fit × signal matrix, pod load and the source scorecard. Boldr computes the numbers from the universe. The Analytics squad's Grokbot refreshes them and posts its findings.
 
-- **Fit (0–100):** vertical 30, size and role mix 25, geography 15, operations intensity 15, historical performance 15.
-- **Signal (0–100):** sum of fresh signal weights, each type counted once, capped at 100. Signals expire after the decay window (30 days by default). Modifiers such as prior relationship only count alongside another signal.
-- **Tier:** A = fit and signal both above threshold, B = fit only, C = signal only, Park = neither.
-- **MQL gate:** Tier A, at least two buying-committee members, and a play assigned.
+## Guardrails
 
-The logic lives in `lib/scoring.ts` and is covered by `tests/scoring.test.ts`.
+People and Grokbots make changes through the same screens, and every change goes through one function (`perform` in `app/actions.ts`):
+
+- **A person's change** applies directly.
+- **A Grokbot's change** is checked by `lib/guardrails.ts` first, in this order:
+  1. permission list
+  2. daily limit
+  3. do-not-contact and existing customers (no outreach)
+  4. granted and connected tools only, with LinkedIn human-only
+
+  After those checks:
+  - Email and LinkedIn drafts always wait for a person.
+  - Routing by a non-lead bot escalates up the chain of command.
+  - The bot's autonomy level then decides whether anything else needs sign-off.
+
+  The result is **blocked**, **queued in Approvals** for the first person in the bot's chain, or **applied**. Every outcome is logged under the bot's name.
+- **People-only changes.** GTM definitions, routing rules, squads, connections, sign-ins and approvals can only be changed by people. A Grokbot that tries is blocked.
+- **No sending.** Boldr never sends email or LinkedIn messages itself. Approving a draft clears it for a person to send.
+
+## Sign-in
+
+- **People and Grokbots** each sign in with one access code. Only the code's SHA-256 is stored, and the code is shown once when it's issued. Issuing a new code or revoking one ends that member's existing sessions.
+- **First sign-in:** set `BOLDR_ADMIN_CODE` on the server. The first person (the Head of GTM) signs in with it, then issues codes from **Squads → Who can sign in**.
+- **Session cookies** are HMAC-signed with `BOLDR_SECRET`. If it isn't set, a random secret is generated and kept in the data store.
 
 ## Run it
 
 ```bash
+cp .env.example .env.local   # set BOLDR_ADMIN_CODE and BOLDR_SECRET
 npm install
-cp .env.example .env.local   # add XAI_API_KEY
-npm run dev
+npm run dev                  # http://localhost:3000
+npm test                     # scoring, routing and guardrail tests
 ```
 
-| Variable | Purpose |
-| --- | --- |
-| `XAI_API_KEY` | xAI API key. Server-side only. Without it, everything works except briefs and the board. |
-| `XAI_MODEL` | Grok model, default `grok-4` |
-| `XAI_BASE_URL` | Override the API base URL, default `https://api.x.ai/v1` |
-| `DATA_DIR` | Where the JSON data file lives, default `./data` |
+Data is stored in a single JSON file (`DATA_DIR`), seeded with the Solvo demo. That's fine for one server. Move to Postgres before you run several instances or tenants.
 
-```bash
-npm test          # scoring tests
-npm run build     # production build
-```
+## Code map
 
-## Architecture
-
-- Next.js App Router with server components and server actions. No client-side API keys.
-- `lib/grok.ts` calls xAI's OpenAI-compatible chat completions API with JSON mode.
-- `lib/ai.ts` holds the brief and board prompts. Grok only uses facts on the account and says what to verify when something is missing.
-- `lib/store.ts` is a single JSON file with serialised writes. That's fine for a prototype on one server. Move to Postgres before running several instances or multiple tenants.
-
-## Next steps
-
-- Postgres plus auth and multi-tenant workspaces
-- Connectors to Apollo, Salesforce and a hiring-signal feed (TheirStack) to feed the universe automatically
-- Learn loop: Business Consultant accept/reject reasons and closed-won data re-fit signal weights
-- Editable verticals and plays in the UI
+- `lib/types.ts`: the domain model
+- `lib/scoring.ts`: fit, signal, tiers and the MQL gate
+- `lib/routing.ts`: rules, pod assignment and dry run
+- `lib/guardrails.ts`: the guardrail engine
+- `lib/auth.ts`: sign-in
+- `lib/tower.ts`: Control Tower metrics
+- `lib/seed/solvo.ts`: the demo workspace
+- `app/actions.ts`: every change goes through here
+- `app/(app)/…`: the six stages plus Approvals
+- `app/login`: the sign-in page

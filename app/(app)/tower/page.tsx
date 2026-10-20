@@ -14,15 +14,19 @@ export default async function Tower() {
   const g = db.gtms[0];
   return (
     <>
-      <PageHead eyebrow="Stage 6 · Control Tower" title="Is the system producing revenue?" sub={`${g.northStar} is the number that runs the operation. The Analytics squad refreshes this page on request.`}>
-        <ActionForm action={refreshTower} submitLabel="Ask Lens to refresh" pendingLabel="Lens is refreshing…" />
-      </PageHead>
-      {!t ? <p className="notice">No snapshot yet. Ask Lens to refresh.</p> : (
+      <PageHead eyebrow="Stage 6 · Control Tower" title="Is the system producing revenue?" sub={`${g.northStar} is the number that runs the operation. Your Analytics Grokbot signs in, refreshes the numbers and posts what it sees.`} />
+      {!t ? <p className="notice">No snapshot yet.</p> : (
         <>
-          <p className="muted small" style={{ margin: 0 }}>Last refreshed by <b>{t.updatedBy}</b> (Analytics squad) {ago(t.updatedAt)}{t.model ? ` · commentary by ${t.model}` : ""}. Numbers are computed exactly from the universe; Grok only writes the commentary.</p>
+          <p className="muted small" style={{ margin: 0 }}>Numbers refreshed by <b>{t.updatedBy}</b> {ago(t.updatedAt)}. They're computed exactly from the universe, so nobody can type them in.{t.commentaryBy ? ` Findings posted by ${t.commentaryBy} ${ago(t.commentaryAt!)}.` : ""}</p>
           <Body t={t} />
         </>
       )}
+      <section className="panel">
+        <h2>Refresh the Control Tower</h2>
+        <ActionForm action={refreshTower} submitLabel="Refresh" pendingLabel="Refreshing…">
+          <div><label htmlFor="commentary">Findings (one per line, optional)</label><textarea id="commentary" name="commentary" placeholder={"Legal Tier A grew 12% this week; move pod 2 capacity there.\nHiring-signal source produced 3 of 4 wins; keep funding it."} /></div>
+        </ActionForm>
+      </section>
     </>
   );
 }
@@ -44,7 +48,7 @@ function Body({ t }: { t: NonNullable<Awaited<ReturnType<typeof readDb>>["tower"
 
       {t.commentary.length ? (
         <section className="synth">
-          <span className="label">What Lens sees</span>
+          <span className="label">What the Analytics squad sees</span>
           <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>{t.commentary.map((c, i) => <li key={i}>{c}</li>)}</ul>
         </section>
       ) : null}

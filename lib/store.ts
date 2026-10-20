@@ -18,7 +18,7 @@ export function readDb(): Promise<Database> {
   loading ??= (async () => {
     try {
       const db = JSON.parse(await fs.readFile(FILE, "utf8")) as Database;
-      if (db.version === 2) return db;
+      if (db.version === 3) return db;
     } catch {}
     const db = seedDatabase();
     await persist(db);

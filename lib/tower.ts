@@ -3,7 +3,7 @@ import { scoreAll } from "./routing";
 import type { Database, Destination, Source, Tier, TowerSnapshot } from "./types";
 
 // The Control Tower's numbers are computed in code so they're exact and repeatable.
-// The Analytics squad triggers a refresh and (when Grok is connected) adds commentary.
+// The Analytics squad's Grokbot signs in, refreshes the numbers and posts its commentary.
 
 export const SOURCE_LABEL: Record<Source, string> = {
   AP: "Apollo core",
@@ -16,7 +16,7 @@ export const SOURCE_LABEL: Record<Source, string> = {
   FC: "Web crawl",
 };
 
-export function computeTower(db: Pick<Database, "accounts" | "gtms" | "pods">, updatedBy: string, model: string | null, commentary: string[], now = new Date()): TowerSnapshot {
+export function computeTower(db: Pick<Database, "accounts" | "gtms" | "pods">, updatedBy: string, commentary: string[], commentaryBy: string | null, now = new Date()): TowerSnapshot {
   const scored = scoreAll(db.accounts, db.gtms, now);
   const tiers: Record<Tier, number> = { A: 0, B: 0, C: 0, Park: 0 };
   const destinations: Record<Destination, number> = { SDR: 0, AI: 0, Hold: 0, Freezer: 0 };
@@ -42,7 +42,8 @@ export function computeTower(db: Pick<Database, "accounts" | "gtms" | "pods">, u
   return {
     updatedAt: now.toISOString(),
     updatedBy,
-    model,
+    commentaryBy,
+    commentaryAt: commentaryBy ? now.toISOString() : null,
     metrics: {
       universe: scored.length,
       tiers,

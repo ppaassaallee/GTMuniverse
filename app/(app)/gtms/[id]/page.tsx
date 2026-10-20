@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { saveGtmRules } from "@/app/actions";
+import { addKnowledge, saveGtmRules } from "@/app/actions";
 import { ActionForm } from "@/components/ActionForm";
 import { PageHead, Tabs } from "@/components/ui";
 import { scoreAll } from "@/lib/routing";
@@ -36,6 +36,7 @@ export default async function GtmPage({ params, searchParams }: { params: Promis
     { href: `${base}?tab=sequences`, label: "Sequences & scripts", count: g.sequences.length + g.scripts.length },
     { href: `${base}?tab=policies`, label: "Policies", count: g.policies.length },
     { href: `${base}?tab=practices`, label: "Best practices", count: g.bestPractices.length },
+    { href: `${base}?tab=knowledge`, label: "Knowledge base", count: g.knowledge.length },
   ];
   const stageCounts = g.buyingStages.map((s) => ({ ...s, n: accounts.filter((a) => buyingStage(a) === s.id).length }));
   const maxStage = Math.max(1, ...stageCounts.map((s) => s.n));
@@ -246,6 +247,33 @@ export default async function GtmPage({ params, searchParams }: { params: Promis
             </section>
           ))}
         </div>
+      ) : null}
+
+      {tab === "knowledge" ? (
+        <>
+          <p className="muted small" style={{ margin: 0 }}>What your Grokbots read before they act: value propositions, objection handling, case studies, competitors. People write it; Grokbots read it.</p>
+          <div className="kb">
+            {g.knowledge.map((k) => (
+              <article key={k.id}>
+                <span className="pill info" style={{ justifySelf: "start" }}>{k.kind}</span>
+                <b>{k.title}</b>
+                <p>{k.body}</p>
+                <span className="muted small">{k.updatedBy} · {new Date(k.updatedAt).toLocaleDateString("en-US")}</span>
+              </article>
+            ))}
+          </div>
+          <section className="panel">
+            <h2>Add to the knowledge base</h2>
+            <ActionForm action={addKnowledge} submitLabel="Add" secondary>
+              <input type="hidden" name="gtmId" value={g.id} />
+              <div className="row">
+                <div><label htmlFor="kind">Type</label><select id="kind" name="kind">{["Value proposition", "Objection", "Case study", "Competitor", "FAQ"].map((k) => <option key={k}>{k}</option>)}</select></div>
+                <div><label htmlFor="title">Title</label><input id="title" name="title" required /></div>
+              </div>
+              <div><label htmlFor="body">Content</label><textarea id="body" name="body" required /></div>
+            </ActionForm>
+          </section>
+        </>
       ) : null}
     </>
   );

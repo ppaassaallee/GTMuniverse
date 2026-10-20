@@ -76,6 +76,16 @@ export interface BestPractice {
   practice: string;
 }
 
+/** Knowledge the Grokbots read before they act: value props, objections, case studies, competitors. */
+export interface KnowledgeDoc {
+  id: string;
+  kind: "Value proposition" | "Objection" | "Case study" | "Competitor" | "FAQ";
+  title: string;
+  body: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
 export interface BuyingStage {
   id: string;
   name: string;
@@ -101,6 +111,7 @@ export interface Gtm {
   scripts: Script[];
   policies: Policy[];
   bestPractices: BestPractice[];
+  knowledge: KnowledgeDoc[];
   buyingStages: BuyingStage[];
   signalDecayDays: number;
   thresholds: { fit: number; signal: number };
@@ -123,7 +134,8 @@ export type ActionType =
   | "route_account"
   | "assign_pod"
   | "freeze_account"
-  | "refresh_tower";
+  | "refresh_tower"
+  | "create_account";
 
 export type Autonomy = "suggest" | "approve" | "act";
 
@@ -176,6 +188,7 @@ export interface Approval {
   approver: string;
   status: "pending" | "approved" | "rejected";
   decidedAt?: string;
+  decidedBy?: string;
 }
 
 export interface Activity {
@@ -324,7 +337,9 @@ export interface Pod {
 export interface TowerSnapshot {
   updatedAt: string;
   updatedBy: string;
-  model: string | null;
+  /** Which Grokbot wrote the commentary, and when. Numbers are always computed by Boldr. */
+  commentaryBy: string | null;
+  commentaryAt: string | null;
   metrics: {
     universe: number;
     tiers: Record<Tier, number>;
@@ -342,28 +357,32 @@ export interface TowerSnapshot {
   commentary: string[];
 }
 
-/* ---------- Expert board ---------- */
+/* ---------- Sign-in ---------- */
 
-export interface AdvisorTake {
-  headline: string;
-  moves: string[];
-  watch: string;
+/** Anyone who signs in: a person, or one of your Grokbots. */
+export interface Member {
+  id: string;
+  name: string;
+  kind: "human" | "bot";
+  role: string;
 }
 
-export interface BoardSession {
-  id: string;
-  createdAt: string;
-  model: string;
-  question: string;
-  advisorIds: string[];
-  synthesis: string;
-  week: string[];
-  takes: Record<string, AdvisorTake>;
+/** One access code per member. Only its SHA-256 is stored; the code is shown once. */
+export interface Login {
+  memberId: string;
+  codeHash: string;
+  hint: string;
+  issuedAt: string;
+  issuedBy: string;
+  lastSignInAt: string | null;
 }
 
 export interface Database {
-  version: 2;
-  org: { name: string; humans: { role: string; name: string }[] };
+  version: 3;
+  org: { name: string; humans: { id: string; role: string; name: string }[] };
+  /** Signs session cookies when BOLDR_SECRET isn't set. */
+  secret: string;
+  logins: Login[];
   gtms: Gtm[];
   squads: Squad[];
   bots: Bot[];
@@ -376,5 +395,4 @@ export interface Database {
   approvals: Approval[];
   activity: Activity[];
   tower: TowerSnapshot | null;
-  sessions: BoardSession[];
 }

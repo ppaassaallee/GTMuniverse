@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ago, money, PageHead } from "@/components/ui";
-import { grokConfigured } from "@/lib/grok";
 import { scoreAll } from "@/lib/routing";
 import { readDb } from "@/lib/store";
 
@@ -21,8 +20,7 @@ export default async function Home() {
   ];
   return (
     <>
-      <PageHead eyebrow={`${db.org.name} on Boldr`} title="Your GTM operating system" sub="Define how you go to market, let squads of Grokbots do the work under guardrails, keep one universe of accounts, hand the right ones to your people, and measure what it produces." />
-      {!grokConfigured() ? <p className="notice">Grok isn't connected, so the squads can't run yet. Add XAI_API_KEY on the server. Everything else works.</p> : null}
+      <PageHead eyebrow={`${db.org.name} on Boldr`} title="Your GTM management layer" sub="Define how you go to market, register the Grokbots that do the work, keep one universe of accounts, hand the right ones to your people, and measure what it produces. Your Grokbots sign in here to read the playbook and post their work; the guardrails decide what sticks." />
 
       <div className="flow" aria-label="The six stages">
         {stages.map((s, i) => (

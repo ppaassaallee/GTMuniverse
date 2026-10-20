@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { issueCode, revokeCode } from "@/app/actions";
+import { ActionForm } from "@/components/ActionForm";
 import { ago, PageHead } from "@/components/ui";
 import { ACTION_LABEL } from "@/lib/guardrails";
 import { SKILLS } from "@/lib/skills";
@@ -15,7 +17,7 @@ export default async function Squads() {
 
   return (
     <>
-      <PageHead eyebrow="Stage 2 · Squads" title="Squads of Grokbots" sub="Each squad owns one job. Bots have skills, a permission list and a boss. Every action they propose passes the guardrails; anything that needs a person waits in Approvals." />
+      <PageHead eyebrow="Stage 2 · Squads" title="Squads of Grokbots" sub="Register your Grokbots here. They run on Grok outside Boldr and sign in like your people do. Each has skills, a permission list and a boss; every change one makes passes the guardrails, and anything that needs a person waits in Approvals." />
 
       <section className="panel">
         <div className="panel-h"><h2>Chain of command</h2><span className="muted small">Humans at the top; every bot reports to a squad lead, every lead to a person</span></div>
@@ -58,7 +60,7 @@ export default async function Squads() {
       <div className="grid2">
         <section className="panel">
           <h2>Guardrails</h2>
-          <p className="muted small" style={{ margin: 0 }}>Enforced in code on every proposed action, in this order. A bot can't talk its way past them.</p>
+          <p className="muted small" style={{ margin: 0 }}>Enforced by Boldr on every change a signed-in Grokbot makes, in this order. A bot can't talk its way past them.</p>
           <ul className="list">
             {db.guardrails.map((g, i) => (
               <li key={g.id} className="policy"><span className={`shield ${g.kind === "block" ? "must" : "should"}`}>{i + 1}</span><span><b>{g.name}</b> <span className="pill info">{KIND_LABEL[g.kind]}</span><div className="small">{g.description}</div></span></li>
@@ -81,11 +83,36 @@ export default async function Squads() {
       </div>
 
       <section className="panel">
+        <div className="panel-h"><h2>Who can sign in</h2><span className="muted small">One access code each, shown once. Issuing a new code ends the old one.</span></div>
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Name</th><th>Role</th><th>Sign-in</th><th /></tr></thead>
+            <tbody>
+              {[...humans.map((h) => ({ id: h.id, name: h.name, role: h.role, bot: false, href: null as string | null })), ...db.bots.map((b) => ({ id: b.id, name: b.name, role: squadOf(b.squadId).name, bot: true, href: `/squads/${b.squadId}?bot=${b.id}` }))].map((m) => {
+                const l = db.logins.find((x) => x.memberId === m.id);
+                return (
+                  <tr key={m.id}>
+                    <td>{m.href ? <Link href={m.href}>{m.name}</Link> : <b>{m.name}</b>} <span className={`who-tag ${m.bot ? "bot" : ""}`}>{m.bot ? "Grokbot" : "Person"}</span></td>
+                    <td className="small">{m.role}</td>
+                    <td className="small muted">{l ? (l.lastSignInAt ? `Signed in ${ago(l.lastSignInAt)}` : "Code issued") : "No code"}</td>
+                    <td><span style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                      <ActionForm action={issueCode} submitLabel={l ? "New code" : "Issue code"} secondary><input type="hidden" name="memberId" value={m.id} /></ActionForm>
+                      {l ? <ActionForm action={revokeCode} submitLabel="Revoke" secondary><input type="hidden" name="memberId" value={m.id} /></ActionForm> : null}
+                    </span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel">
         <div className="panel-h"><h2>Recent activity</h2><Link className="small" href="/approvals">Approvals</Link></div>
         <ul className="list feed">
           {db.activity.slice(0, 12).map((a) => <li key={a.id}><span className={`kind kind-${a.kind}`}>{a.kind}</span><span><b>{a.actor}</b> {a.text} <span className="muted small">· {ago(a.at)}</span></span></li>)}
         </ul>
-        <p className="muted small" style={{ margin: 0 }}>Actions bots can take: {Object.values(ACTION_LABEL).join(" · ")}.</p>
+        <p className="muted small" style={{ margin: 0 }}>Actions a Grokbot can be permitted: {Object.values(ACTION_LABEL).join(" · ")}.</p>
       </section>
     </>
   );

@@ -14,7 +14,7 @@ export default async function Approvals() {
 
   return (
     <>
-      <PageHead eyebrow="Approvals" title="Bot work waiting for a person" sub="Anything that leaves the building, changes who works an account, or comes from a bot in suggest mode stops here. Approving a send marks it ready for a person to send; Boldr never sends on its own." />
+      <PageHead eyebrow="Approvals" title="Grokbot work waiting for a person" sub="Anything that leaves the building, changes who works an account, or comes from a Grokbot that needs sign-off stops here. Approving applies the change; approving a send marks it ready for a person to send. Boldr never sends on its own." />
       {pending.length ? (
         <div style={{ display: "grid", gap: 12 }}>
           {pending.map((p) => {
@@ -39,13 +39,13 @@ export default async function Approvals() {
           })}
         </div>
       ) : (
-        <section className="panel"><p className="muted" style={{ margin: 0 }}>Nothing waiting. Run a squad and its proposals that need sign-off will appear here.</p></section>
+        <section className="panel"><p className="muted" style={{ margin: 0 }}>Nothing waiting. When a signed-in Grokbot makes a change that needs sign-off, it lands here.</p></section>
       )}
       {decided.length ? (
         <section className="panel">
           <h2>Decided</h2>
           <ul className="list">
-            {decided.map((p) => <li key={p.id}><span><span className={`pill ${p.status === "approved" ? "ok" : "no"}`}>{p.status}</span> {p.action.summary}</span><span className="muted small">{bot(p.botId)?.name} · {p.approver} · {p.decidedAt ? ago(p.decidedAt) : ""}</span></li>)}
+            {decided.map((p) => <li key={p.id}><span><span className={`pill ${p.status === "approved" ? "ok" : "no"}`}>{p.status}</span> {p.action.summary}</span><span className="muted small">{bot(p.botId)?.name} · {p.decidedBy || p.approver} · {p.decidedAt ? ago(p.decidedAt) : ""}</span></li>)}
           </ul>
         </section>
       ) : null}

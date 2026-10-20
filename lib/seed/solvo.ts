@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { routeAll } from "../routing";
 import { computeTower } from "../tower";
 import type { Account, Bot, Connection, Database, Gtm, Guardrail, List, Pod, RoutingRule, Source, Squad } from "../types";
@@ -111,6 +112,13 @@ const usNearshore: Gtm = {
     { id: "bp10", source: "Boldr", area: "Reasons", practice: "Every account arrives with a reason: good company, why now, commercial hypothesis and recommended motion." },
     { id: "bp11", source: "Boldr", area: "Sources", practice: "Judge every lead source on cost per SQL and pipeline per 100 MQLs, never on records delivered." },
   ],
+  knowledge: [
+    { id: "kb1", kind: "Value proposition", title: "Why nearshore with Solvo", body: "Add capacity in US time zones at a fraction of US cost. Solvo recruits, onboards and retains; the client manages the work. Typical savings 50–70% per seat with ramp in 3–5 weeks.", updatedBy: "Valentina Ríos", updatedAt: "2026-10-01T00:00:00Z" },
+    { id: "kb2", kind: "Objection", title: "“We tried offshore and quality dropped”", body: "Acknowledge it. Contrast time-zone overlap, dedicated (not shared) staff, and the client's own process and tools. Offer a two-seat pilot with a 30-day exit.", updatedBy: "Valentina Ríos", updatedAt: "2026-10-01T00:00:00Z" },
+    { id: "kb3", kind: "Objection", title: "“Data security”", body: "Client systems stay the system of record. Staff work through client-issued access with MFA and least privilege; Solvo signs the client's DPA and BAA where needed.", updatedBy: "Valentina Ríos", updatedAt: "2026-10-01T00:00:00Z" },
+    { id: "kb4", kind: "Case study", title: "Regional law firm: 14 paralegals in 6 weeks", body: "Intake backlog cleared in a quarter; cost per matter down 38%. Use for Legal accounts with a hiring spike.", updatedBy: "Valentina Ríos", updatedAt: "2026-10-01T00:00:00Z" },
+    { id: "kb5", kind: "Competitor", title: "Freelance marketplaces", body: "Cheaper per hour, but no retention, no management layer and no continuity. Position Solvo as a team, not a gig.", updatedBy: "Valentina Ríos", updatedAt: "2026-10-01T00:00:00Z" },
+  ],
   buyingStages: [
     { id: "target", name: "Target", meaning: "Fits the ICP, no buying activity yet", motion: "Nurture, build the committee map" },
     { id: "awareness", name: "Awareness", meaning: "Early research or a first signal", motion: "AI warm-up, content, ads" },
@@ -135,9 +143,9 @@ const peDraft: Gtm = {
 };
 
 const HUMANS = [
-  { role: "Head of GTM Engineering", name: "Valentina Ríos" },
-  { role: "GTM Operator", name: "Camilo Restrepo" },
-  { role: "Revenue Analyst", name: "Laura Gómez" },
+  { id: "h_head", role: "Head of GTM Engineering", name: "Valentina Ríos" },
+  { id: "h_ops", role: "GTM Operator", name: "Camilo Restrepo" },
+  { id: "h_analyst", role: "Revenue Analyst", name: "Laura Gómez" },
 ];
 
 const SQUADS: Squad[] = [
@@ -149,7 +157,7 @@ const SQUADS: Squad[] = [
 
 const BOTS: Bot[] = [
   { id: "b_atlas", name: "Atlas", squadId: "sq_prospect", role: "Squad lead · runs the five jobs, one record per account", isLead: true, skills: ["workflow", "agentops"], reportsTo: "human:Head of GTM Engineering", autonomy: "approve", allowedActions: ["read_records", "update_record", "route_account", "assign_pod"], connections: ["c_salesforce"], dailyLimit: 300 },
-  { id: "b_scout", name: "Scout", squadId: "sq_prospect", role: "Who deserves a look? Dated evidence: event, date, source, why they fit", skills: ["signals", "tam"], reportsTo: "b_atlas", autonomy: "act", allowedActions: ["read_records", "add_signal"], connections: ["c_theirstack", "c_gsheets"], dailyLimit: 1000 },
+  { id: "b_scout", name: "Scout", squadId: "sq_prospect", role: "Who deserves a look? Dated evidence: event, date, source, why they fit", skills: ["signals", "tam"], reportsTo: "b_atlas", autonomy: "act", allowedActions: ["read_records", "create_account", "add_signal"], connections: ["c_theirstack", "c_gsheets"], dailyLimit: 1000 },
   { id: "b_research", name: "Researcher", squadId: "sq_prospect", role: "What should we know? Sourced brief, open questions, evidence against", skills: ["enrichment", "signals"], reportsTo: "b_atlas", autonomy: "act", allowedActions: ["read_records", "write_brief", "map_committee"], connections: ["c_apollo"], dailyLimit: 400 },
   { id: "b_strategist", name: "Strategist", squadId: "sq_prospect", role: "What could we offer? Offer and fit: prepare, dig or skip", skills: ["awareness", "outbound"], reportsTo: "b_atlas", autonomy: "approve", allowedActions: ["read_records", "update_record"], connections: [], dailyLimit: 300 },
   { id: "b_writer", name: "Writer", squadId: "sq_prospect", role: "What starts the talk? First-touch draft from approved examples", skills: ["content", "outbound"], reportsTo: "b_atlas", autonomy: "act", allowedActions: ["read_records", "draft_email", "send_email", "linkedin_prepare"], connections: ["c_email", "c_linkedin"], dailyLimit: 400 },
@@ -177,6 +185,7 @@ const GUARDRAILS: Guardrail[] = [
   { id: "g6", name: "AI drafts, human sends", description: "Every external send waits for a person's approval.", kind: "approval" },
   { id: "g7", name: "Chain of command", description: "Routing, pod assignment and freezing by a non-lead bot escalate to the first human above it.", kind: "escalate" },
   { id: "g8", name: "Autonomy level", description: "Suggest-mode bots need approval for everything; approve-mode bots for any change.", kind: "approval" },
+  { id: "g9", name: "People own the rules", description: "Only people change GTM definitions, routing rules, squads, sign-ins and approvals. Grokbots read them.", kind: "block" },
 ];
 
 const CONNECTIONS: Connection[] = [
@@ -334,8 +343,10 @@ export function seedDatabase(now = new Date()): Database {
   const lists = structuredClone(LISTS);
   lists[7].accountIds = accounts.filter((a) => a.routing?.podId === "pod1").slice(0, 6).map((a) => a.id);
   const db: Database = {
-    version: 2,
-    org: { name: "Solvo", humans: HUMANS },
+    version: 3,
+    org: { name: "Solvo", humans: structuredClone(HUMANS) },
+    secret: randomBytes(32).toString("hex"),
+    logins: [],
     gtms,
     squads: structuredClone(SQUADS),
     bots: structuredClone(BOTS),
@@ -348,8 +359,7 @@ export function seedDatabase(now = new Date()): Database {
     approvals: [],
     activity: [{ id: "act_seed", at: now.toISOString(), actor: "Boldr", text: `Seeded the Solvo demo: ${accounts.length} accounts routed by ${rules.length} rules.`, kind: "info" }],
     tower: null,
-    sessions: [],
   };
-  db.tower = computeTower(db, "Lens", null, [], now);
+  db.tower = computeTower(db, "Boldr", [], null, now);
   return db;
 }
