@@ -1,96 +1,77 @@
 import Link from "next/link";
 import { addAccount } from "@/app/actions";
+import { AccountTable } from "@/components/AccountTable";
 import { ActionForm } from "@/components/ActionForm";
-import { FACTORY_LABEL, PageHead, ScoreBar, STAGE_LABEL, TierPill, ValuePill } from "@/components/ui";
-import { prioritize, scoreAccount } from "@/lib/scoring";
+import { UniverseTabs } from "@/components/UniverseTabs";
+import { DEST_LABEL, PageHead } from "@/components/ui";
+import { listMembers, scoreAll } from "@/lib/routing";
+import { prioritize } from "@/lib/scoring";
 import { readDb } from "@/lib/store";
+import { SOURCE_LABEL } from "@/lib/tower";
 
-const TIERS = ["all", "A", "B", "C", "Park"] as const;
+type SP = { tier?: string; dest?: string; list?: string; q?: string };
 
-export default async function Universe({ searchParams }: { searchParams: Promise<{ tier?: string; q?: string }> }) {
-  const { tier = "all", q = "" } = await searchParams;
+export default async function Universe({ searchParams }: { searchParams: Promise<SP> }) {
+  const sp = await searchParams;
   const db = await readDb();
-  const ws = db.workspace;
-  const verticals = new Map(ws.verticals.map((v) => [v.id, v.name]));
-  let list = prioritize(db.accounts.map((a) => scoreAccount(a, ws)));
-  if (tier !== "all") list = list.filter((a) => a.tier === tier);
-  const query = q.trim().toLowerCase();
-  if (query) list = list.filter((a) => a.name.toLowerCase().includes(query) || a.domain.includes(query));
+  const verticals = new Map(db.gtms.flatMap((g) => g.verticals).map((v) => [v.id, v.name]));
+  const all = scoreAll(db.accounts, db.gtms);
+  let rows = prioritize(all);
+  const list = db.lists.find((l) => l.id === sp.list);
+  if (list) rows = prioritize(listMembers(list, all));
+  if (sp.tier) rows = rows.filter((a) => a.tier === sp.tier);
+  if (sp.dest) rows = rows.filter((a) => a.routing?.dest === sp.dest);
+  const q = (sp.q || "").trim().toLowerCase();
+  if (q) rows = rows.filter((a) => a.name.toLowerCase().includes(q) || a.domain.includes(q) || (verticals.get(a.verticalId || "") || "").toLowerCase().includes(q) || a.state.toLowerCase() === q);
+  const link = (patch: Partial<SP>) => {
+    const p = new URLSearchParams(Object.entries({ ...sp, ...patch }).filter(([, v]) => v) as [string, string][]);
+    const s = p.toString();
+    return s ? `/universe?${s}` : "/universe";
+  };
 
   return (
     <>
-      <PageHead eyebrow="Account universe" title="One market, deduplicated by domain" sub="Every account from every lead factory, scored on fit, signal and value and sorted into tiers. Change a weight in Workspace and every score updates." />
+      <PageHead eyebrow="Stage 4 · Universe" title="Universe" sub={`${db.accounts.length} accounts from ${Object.keys(SOURCE_LABEL).length} sources, scored and routed by rules. Click an account to see why.`}>
+        <Link className="btn ghost" href="/universe/rules">Routing rules & dry run</Link>
+      </PageHead>
+      <UniverseTabs db={db} active="/universe" inbox={all.filter((a) => a.freshestSignalDays != null && a.freshestSignalDays <= 7).length} />
 
-      <div className="split">
-        <section className="panel">
-          <div className="actions" style={{ justifyContent: "space-between" }}>
-            <nav className="filters" aria-label="Filter by tier" style={{ flexDirection: "row" }}>
-              {TIERS.map((t) => (
-                <Link key={t} className="chip" aria-current={tier === t ? "true" : undefined} href={t === "all" ? "/universe" : `/universe?tier=${t}`}>
-                  {t === "all" ? "All" : t === "Park" ? "Park" : `Tier ${t}`}
-                </Link>
-              ))}
-            </nav>
-            <form action="/universe" style={{ display: "flex", gap: 6 }}>
-              {tier !== "all" ? <input type="hidden" name="tier" value={tier} /> : null}
-              <input name="q" defaultValue={q} placeholder="Search name or domain" aria-label="Search accounts" />
-            </form>
-          </div>
-          <div className="tablewrap">
-            <table>
-              <thead><tr><th>Account</th><th>Tier</th><th>Fit</th><th>Signal</th><th>Value</th><th>Stage</th></tr></thead>
-              <tbody>
-                {list.map((a) => (
-                  <tr key={a.id} className="link-row">
-                    <td>
-                      <Link className="name" href={`/accounts/${a.id}`}>{a.name}</Link>
-                      <div className="muted small">{a.domain} · {verticals.get(a.verticalId || "") || "Unclassified"} · {FACTORY_LABEL[a.factory]}</div>
-                    </td>
-                    <td><TierPill tier={a.tier} /></td>
-                    <td><ScoreBar value={a.fitScore} label="Fit" /></td>
-                    <td><ScoreBar value={a.signalScore} label="Signal" /></td>
-                    <td><ValuePill value={a.value} /></td>
-                    <td className="small">{STAGE_LABEL[a.stage]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!list.length ? <p className="muted">No accounts match.</p> : null}
-        </section>
-
-        <section className="panel">
-          <h2>Add an account</h2>
-          <ActionForm action={addAccount} submitLabel="Add to universe" pendingLabel="Adding…">
-            <div><label htmlFor="name">Company</label><input id="name" name="name" required placeholder="Lakeshore Injury Law" /></div>
-            <div><label htmlFor="domain">Domain</label><input id="domain" name="domain" required placeholder="lakeshoreinjury.com" /></div>
-            <div className="row">
-              <div>
-                <label htmlFor="vertical">Vertical</label>
-                <select id="vertical" name="vertical" defaultValue="">
-                  <option value="">Unclassified</option>
-                  {ws.verticals.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="factory">Source</label>
-                <select id="factory" name="factory" defaultValue="core">
-                  {Object.entries(FACTORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="row">
-              <div><label htmlFor="employees">Employees</label><input id="employees" name="employees" type="number" min="0" /></div>
-              <div><label htmlFor="seats">Est. seats</label><input id="seats" name="seats" type="number" min="0" /></div>
-            </div>
-            <div className="row">
-              <div><label htmlFor="geography">Geography</label><input id="geography" name="geography" placeholder="IL · WI" /></div>
-              <div><label htmlFor="fit">Initial fit (0–100)</label><input id="fit" name="fit" type="number" min="0" max="100" defaultValue="50" /></div>
-            </div>
-            <div><label htmlFor="notes">Notes</label><textarea id="notes" name="notes" placeholder="Anything the brief should know." /></div>
-          </ActionForm>
-        </section>
+      <div className="actions" style={{ justifyContent: "space-between" }}>
+        <div className="actions">
+          {["A", "B", "C", "Park"].map((t) => <Link key={t} className={`btn sm ${sp.tier === t ? "" : "ghost"}`} href={link({ tier: sp.tier === t ? undefined : t })}>{t === "Park" ? "Park" : `Tier ${t}`}</Link>)}
+          <span className="muted">|</span>
+          {(["SDR", "AI", "Hold", "Freezer"] as const).map((d) => <Link key={d} className={`btn sm ${sp.dest === d ? "" : "ghost"}`} href={link({ dest: sp.dest === d ? undefined : d })}>{DEST_LABEL[d]}</Link>)}
+          {list ? <Link className="btn sm" href={link({ list: undefined })}>List: {list.name} ✕</Link> : null}
+        </div>
+        <form action="/universe" style={{ display: "flex", gap: 6 }}>
+          {Object.entries(sp).filter(([k, v]) => k !== "q" && v).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+          <input name="q" defaultValue={sp.q} placeholder="Search name, domain, vertical, state" aria-label="Search the universe" style={{ minWidth: 260 }} />
+        </form>
       </div>
+
+      <section className="panel" style={{ padding: 0 }}>
+        <div className="panel-h" style={{ padding: "12px 16px 0" }}><span className="small muted"><b>{rows.length}</b> of {db.accounts.length} accounts · sorted by tier, value, signal, fit</span></div>
+        <AccountTable rows={rows.slice(0, 150)} pods={db.pods} verticals={verticals} />
+      </section>
+
+      <details className="panel">
+        <summary><b>Add an account</b> <span className="muted small">It's scored and routed as soon as it lands</span></summary>
+        <ActionForm action={addAccount} submitLabel="Add to universe" pendingLabel="Adding…">
+          <div className="row">
+            <div><label htmlFor="name">Company</label><input id="name" name="name" required /></div>
+            <div><label htmlFor="domain">Domain</label><input id="domain" name="domain" required placeholder="example.com" /></div>
+            <div><label htmlFor="gtmId">GTM</label><select id="gtmId" name="gtmId">{db.gtms.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
+            <div><label htmlFor="vertical">Vertical</label><select id="vertical" name="vertical" defaultValue=""><option value="">Unclassified</option>{[...verticals].map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select></div>
+          </div>
+          <div className="row">
+            <div><label htmlFor="source">Source</label><select id="source" name="source">{Object.entries(SOURCE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+            <div><label htmlFor="employees">Employees</label><input id="employees" name="employees" type="number" min="0" /></div>
+            <div><label htmlFor="state">State</label><input id="state" name="state" maxLength={2} placeholder="TX" /></div>
+            <div><label htmlFor="seats">Est. seats</label><input id="seats" name="seats" type="number" min="0" /></div>
+            <div><label htmlFor="fit">Initial fit</label><input id="fit" name="fit" type="number" min="0" max="100" defaultValue="50" /></div>
+          </div>
+        </ActionForm>
+      </details>
     </>
   );
 }

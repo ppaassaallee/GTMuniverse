@@ -1,133 +1,62 @@
 import Link from "next/link";
-import { FACTORY_LABEL, PageHead, ScoreBar, STAGE_LABEL, TierPill, ValuePill } from "@/components/ui";
-import { prioritize, revenuePer100Mqls, scoreAccount } from "@/lib/scoring";
+import { ago, money, PageHead } from "@/components/ui";
+import { grokConfigured } from "@/lib/grok";
+import { scoreAll } from "@/lib/routing";
 import { readDb } from "@/lib/store";
-import type { Tier } from "@/lib/types";
 
-const money = (n: number) => "$" + n.toLocaleString("en-US");
-
-export default async function ControlTower() {
+export default async function Home() {
   const db = await readDb();
-  const ws = db.workspace;
-  const scored = prioritize(db.accounts.map((a) => scoreAccount(a, ws)));
-  const m = revenuePer100Mqls(db.accounts);
-  const count = (t: Tier) => scored.filter((a) => a.tier === t).length;
-  const mqlReady = scored.filter((a) => a.mqlReady).length;
-  const queue = scored.filter((a) => a.tier === "A" && a.stage === "universe").slice(0, 6);
-  const stages = ["mql", "sql", "opportunity", "won"] as const;
-  // Closed-lost accounts reached MQL but no further stage we track.
-  const reached = (s: (typeof stages)[number]) =>
-    s === "mql" ? db.accounts.filter((a) => a.stage !== "universe").length : db.accounts.filter((a) => stages.indexOf(a.stage as never) >= stages.indexOf(s)).length;
-  const factories = Object.keys(FACTORY_LABEL).map((f) => {
-    const list = scored.filter((a) => a.factory === f);
-    return { f, total: list.length, tierA: list.filter((a) => a.tier === "A").length, won: list.filter((a) => a.stage === "won").length };
-  });
-
+  const scored = scoreAll(db.accounts, db.gtms);
+  const pending = db.approvals.filter((a) => a.status === "pending");
+  const connected = db.connections.filter((c) => c.status === "connected").length;
+  const withPods = db.accounts.filter((a) => a.routing?.podId).length;
+  const t = db.tower?.metrics;
+  const stages = [
+    { href: "/gtms", n: "1", name: "GTMs", big: db.gtms.length, small: `${db.gtms.filter((g) => g.status === "live").length} live · ${db.gtms.reduce((s, g) => s + g.plays.length, 0)} plays · ${db.gtms.reduce((s, g) => s + g.policies.length, 0)} policies` },
+    { href: "/squads", n: "2", name: "Squads", big: db.bots.length, small: `${db.squads.length} squads · ${db.guardrails.length} guardrails` },
+    { href: "/connections", n: "3", name: "Connections", big: `${connected}/${db.connections.length}`, small: "connected" },
+    { href: "/universe", n: "4", name: "Universe", big: db.accounts.length, small: `${scored.filter((a) => a.tier === "A").length} Tier A · ${db.lists.length} lists · ${db.rules.filter((r) => r.on).length} rules` },
+    { href: "/pods", n: "5", name: "Pods", big: withPods, small: `accounts with ${db.pods.length} human pods` },
+    { href: "/tower", n: "6", name: "Control Tower", big: t?.revenuePer100Mqls != null ? money(t.revenuePer100Mqls) : "–", small: "revenue per 100 MQLs" },
+  ];
   return (
     <>
-      <PageHead eyebrow={`${ws.company} · Control Tower`} title="Is the system producing revenue?" sub={ws.goal} />
+      <PageHead eyebrow={`${db.org.name} on Boldr`} title="Your GTM operating system" sub="Define how you go to market, let squads of Grokbots do the work under guardrails, keep one universe of accounts, hand the right ones to your people, and measure what it produces." />
+      {!grokConfigured() ? <p className="notice">Grok isn't connected, so the squads can't run yet. Add XAI_API_KEY on the server. Everything else works.</p> : null}
 
-      <div className="kpis">
-        <div className="kpi primary">
-          <span className="label">Revenue per 100 MQLs</span>
-          <span className="n">{m.per100 == null ? "–" : money(m.per100)}</span>
-          <span className="d">{money(m.revenue)} closed won from {m.mqls} MQLs</span>
-        </div>
-        <div className="kpi">
-          <span className="label">MQLs per closed-won deal</span>
-          <span className="n">{m.won ? (m.mqls / m.won).toFixed(1) : "–"}</span>
-          <span className="d">Lower is better</span>
-        </div>
-        <div className="kpi">
-          <span className="label">Tier A accounts</span>
-          <span className="n">{count("A")}</span>
-          <span className="d">{scored.length ? Math.round((count("A") / scored.length) * 100) : 0}% of a {scored.length}-account universe</span>
-        </div>
-        <div className="kpi">
-          <span className="label">Pass the MQL gate</span>
-          <span className="n">{mqlReady}</span>
-          <span className="d">Tier A, 2+ committee members, play assigned</span>
-        </div>
+      <div className="flow" aria-label="The six stages">
+        {stages.map((s, i) => (
+          <span key={s.href} style={{ display: "contents" }}>
+            {i ? <span className="arrow" aria-hidden>→</span> : null}
+            <Link className="step" href={s.href}>
+              <span className="label" style={{ margin: 0 }}>{s.n} · {s.name}</span>
+              <span className="n">{s.big}</span>
+              <small>{s.small}</small>
+            </Link>
+          </span>
+        ))}
       </div>
 
       <div className="grid2">
         <section className="panel">
-          <h2>Fit × signal</h2>
-          <div className="matrix">
-            <span />
-            <span className="axis">Fit below {ws.thresholds.fit}</span>
-            <span className="axis">Fit {ws.thresholds.fit}+</span>
-            <span className="axis">Signal {ws.thresholds.signal}+</span>
-            <Link href="/universe?tier=C" className="cell tier-C"><b>{count("C")}</b>Tier C · manual review</Link>
-            <Link href="/universe?tier=A" className="cell tier-A"><b>{count("A")}</b>Tier A · work now</Link>
-            <span className="axis">Signal below {ws.thresholds.signal}</span>
-            <Link href="/universe?tier=Park" className="cell tier-Park"><b>{count("Park")}</b>Park · wait for a signal</Link>
-            <Link href="/universe?tier=B" className="cell tier-B"><b>{count("B")}</b>Tier B · nurture</Link>
-          </div>
+          <div className="panel-h"><h2>Waiting for you</h2><Link href="/approvals" className="small">All approvals</Link></div>
+          {pending.length ? (
+            <ul className="list">
+              {pending.slice(0, 6).map((p) => (
+                <li key={p.id}><b>{p.action.summary}</b><span className="muted small">{db.bots.find((b) => b.id === p.botId)?.name} → {p.approver} · {ago(p.createdAt)}</span></li>
+              ))}
+            </ul>
+          ) : <p className="muted">Nothing pending. When a bot needs sign-off, it lands here.</p>}
         </section>
-
         <section className="panel">
-          <h2>Funnel</h2>
-          <div className="funnel">
-            {stages.map((s) => {
-              const n = reached(s);
-              const max = Math.max(1, reached("mql"));
-              return (
-                <div className="step" key={s}>
-                  <span>{STAGE_LABEL[s]}</span>
-                  <span className="track"><i style={{ width: `${(n / max) * 100}%` }} /></span>
-                  <span className="num">{n}</span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="muted small">Counts accounts that reached each stage or beyond. Closed-lost accounts count as MQLs.</p>
+          <div className="panel-h"><h2>Squad activity</h2><Link href="/squads" className="small">Squads</Link></div>
+          <ul className="list feed">
+            {db.activity.slice(0, 8).map((a) => (
+              <li key={a.id}><span className={`kind kind-${a.kind}`}>{a.kind}</span><span><b>{a.actor}</b> {a.text} <span className="muted small">· {ago(a.at)}</span></span></li>
+            ))}
+          </ul>
         </section>
       </div>
-
-      <section className="panel">
-        <div className="actions" style={{ justifyContent: "space-between" }}>
-          <h2>Work queue: Tier A, not yet engaged</h2>
-          <Link className="btn ghost" href="/universe?tier=A">Open universe</Link>
-        </div>
-        {queue.length ? (
-          <div className="tablewrap">
-            <table>
-              <thead><tr><th>Account</th><th>Fit</th><th>Signal</th><th>Value</th><th>MQL gate</th></tr></thead>
-              <tbody>
-                {queue.map((a) => (
-                  <tr key={a.id} className="link-row">
-                    <td><Link className="name" href={`/accounts/${a.id}`}>{a.name}</Link><div className="muted small">{a.signals[0]?.detail || a.domain}</div></td>
-                    <td><ScoreBar value={a.fitScore} label="Fit" /></td>
-                    <td><ScoreBar value={a.signalScore} label="Signal" /></td>
-                    <td><ValuePill value={a.value} /></td>
-                    <td>{a.mqlReady ? <span className="pill ok">Ready</span> : <span className="muted small">{a.mqlBlockers.join(" · ")}</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted">No Tier A accounts waiting. Add accounts or signals in the universe.</p>
-        )}
-      </section>
-
-      <section className="panel">
-        <h2>Lead factories</h2>
-        <div className="tablewrap">
-          <table>
-            <thead><tr><th>Factory</th><th className="num">Accounts</th><th className="num">Tier A</th><th className="num">Closed won</th></tr></thead>
-            <tbody>
-              {factories.map((r) => (
-                <tr key={r.f}><td>{FACTORY_LABEL[r.f]}</td><td className="num">{r.total}</td><td className="num">{r.tierA}</td><td className="num">{r.won}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="muted small">Judge each source on pipeline per 100 MQLs, never on records delivered.</p>
-      </section>
-
-      <p className="muted small">Tiers: <TierPill tier="A" /> <TierPill tier="B" /> <TierPill tier="C" /> <TierPill tier="Park" /></p>
     </>
   );
 }

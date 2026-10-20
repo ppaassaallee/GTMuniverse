@@ -1,7 +1,10 @@
-// Core domain model. One workspace = one company running its GTM on Boldr.
+// Boldr domain model. An organisation runs one or more GTMs; squads of Grokbots do the work
+// under guardrails and a chain of command; humans in pods sell; the Control Tower measures.
 
 export type Tier = "A" | "B" | "C" | "Park";
 export type ValueBand = "high" | "medium" | "low";
+
+/* ---------- 1. GTMs ---------- */
 
 export interface Vertical {
   id: string;
@@ -10,16 +13,25 @@ export interface Vertical {
   hiringSignals: string;
   personas: string;
   timing: string;
+  /** Months (1-12) when plays should fire, 60-90 days before the buying peak. */
+  sellMonths: number[];
+}
+
+export interface Persona {
+  id: string;
+  title: string;
+  committeeRole: CommitteeRole;
+  pains: string;
+  message: string;
 }
 
 export interface SignalType {
   id: string;
   name: string;
   definition: string;
-  /** Points added to the signal score while the signal is fresh. */
   weight: number;
   source: string;
-  /** A modifier only counts when at least one other signal is active (e.g. prior relationship). */
+  /** Only counts when another signal is active (e.g. prior relationship). */
   modifier?: boolean;
 }
 
@@ -29,44 +41,182 @@ export interface Play {
   trigger: string;
   hypothesis: string;
   firstTouch: string;
+  sequenceId: string | null;
+  /** Observed MQL to SQL rate, 0..1, when known. */
+  sqlRate: number | null;
 }
 
-export interface Workspace {
+export type Channel = "email" | "call" | "linkedin" | "voicemail" | "task";
+
+export interface Sequence {
   id: string;
-  company: string;
+  name: string;
+  persona: string;
+  steps: { day: number; channel: Channel; action: string }[];
+}
+
+export interface Script {
+  id: string;
+  name: string;
+  kind: "cold call" | "voicemail" | "objection" | "handoff";
+  body: string;
+}
+
+export interface Policy {
+  id: string;
+  name: string;
+  rule: string;
+  severity: "must" | "should";
+}
+
+export interface BestPractice {
+  id: string;
+  source: "6sense" | "ZoomInfo" | "Apollo" | "Boldr";
+  area: string;
+  practice: string;
+}
+
+export interface BuyingStage {
+  id: string;
+  name: string;
+  meaning: string;
+  motion: string;
+}
+
+export interface Gtm {
+  id: string;
+  name: string;
+  status: "live" | "draft";
+  owner: string;
+  objective: string;
+  northStar: string;
   product: string;
   icpSummary: string;
-  stage: string;
-  motion: string;
-  goal: string;
+  exclusions: string;
   verticals: Vertical[];
+  personas: Persona[];
   signalTypes: SignalType[];
   plays: Play[];
-  /** Days after which a signal stops counting. */
+  sequences: Sequence[];
+  scripts: Script[];
+  policies: Policy[];
+  bestPractices: BestPractice[];
+  buyingStages: BuyingStage[];
   signalDecayDays: number;
   thresholds: { fit: number; signal: number };
 }
 
+/* ---------- 2. Squads ---------- */
+
+export type ActionType =
+  | "read_records"
+  | "update_record"
+  | "add_signal"
+  | "map_committee"
+  | "write_brief"
+  | "draft_email"
+  | "send_email"
+  | "linkedin_prepare"
+  | "linkedin_send"
+  | "enrich"
+  | "export_sheet"
+  | "route_account"
+  | "assign_pod"
+  | "freeze_account"
+  | "refresh_tower";
+
+export type Autonomy = "suggest" | "approve" | "act";
+
+export interface Bot {
+  id: string;
+  name: string;
+  squadId: string;
+  role: string;
+  skills: string[];
+  /** Bot id or "human:<role>". The chain of command runs through this field. */
+  reportsTo: string;
+  autonomy: Autonomy;
+  allowedActions: ActionType[];
+  connections: string[];
+  dailyLimit: number;
+  isLead?: boolean;
+}
+
+export interface Squad {
+  id: string;
+  name: string;
+  mission: string;
+  gtmId: string;
+  color: string;
+}
+
+export interface Guardrail {
+  id: string;
+  name: string;
+  description: string;
+  kind: "approval" | "block" | "limit" | "escalate";
+}
+
+export interface ProposedAction {
+  type: ActionType;
+  accountId?: string | null;
+  connectionId?: string | null;
+  summary: string;
+  payload?: Record<string, unknown>;
+}
+
+export type Verdict = { decision: "allow" | "approval" | "block"; reasons: string[]; approver: string | null };
+
+export interface Approval {
+  id: string;
+  createdAt: string;
+  botId: string;
+  action: ProposedAction;
+  reasons: string[];
+  approver: string;
+  status: "pending" | "approved" | "rejected";
+  decidedAt?: string;
+}
+
+export interface Activity {
+  id: string;
+  at: string;
+  actor: string;
+  text: string;
+  kind: "done" | "queued" | "blocked" | "human" | "info";
+}
+
+/* ---------- 3. Connections ---------- */
+
+export interface Connection {
+  id: string;
+  name: string;
+  kind: "crm" | "data" | "social" | "files" | "email";
+  /** How the squads reach it: delegated sign-in, a granted file/folder, or human-only. */
+  access: "delegated" | "file" | "human-only";
+  status: "connected" | "not_connected";
+  scopes: string[];
+  note: string;
+}
+
+/* ---------- 4. Universe ---------- */
+
+export type CommitteeRole = "economic" | "operational" | "functional" | "champion";
+export type Source = "AP" | "LI" | "TS" | "PE" | "LK" | "RX" | "IN" | "FC";
+export type Destination = "SDR" | "AI" | "Hold" | "Freezer";
+
 export interface AccountSignal {
   typeId: string;
   detail: string;
-  /** ISO date of the event. */
   date: string;
 }
 
 export interface FitInputs {
-  /** Each 0..1: how well the account matches that part of the ICP. */
   vertical: number;
   sizeAndRoleMix: number;
   geography: number;
   operationsIntensity: number;
   historicalPerformance: number;
-}
-
-export interface CommitteeMember {
-  role: "economic" | "operational" | "functional" | "champion";
-  title: string;
-  name?: string;
 }
 
 export interface AccountBrief {
@@ -81,24 +231,38 @@ export interface AccountBrief {
   email: { subject: string; body: string };
 }
 
-export type Factory = "core" | "linkedin" | "signal" | "portfolio" | "lookalike" | "reactivation";
+export interface Routing {
+  dest: Destination;
+  ruleId: string | null;
+  reason: string;
+  podId: string | null;
+  owner: string | null;
+  agent: string | null;
+  thaw: string | null;
+  at: string;
+}
 
 export interface Account {
   id: string;
+  gtmId: string;
   domain: string;
   name: string;
   verticalId: string | null;
   employees: number | null;
-  geography: string;
-  notes: string;
-  factory: Factory;
+  state: string;
+  sources: Source[];
   fit: FitInputs;
   signals: AccountSignal[];
-  committee: CommitteeMember[];
+  committee: { role: CommitteeRole; title: string; name?: string }[];
   estimatedSeats: number | null;
   brief: AccountBrief | null;
-  stage: "universe" | "mql" | "sql" | "opportunity" | "won" | "lost";
+  stage: "new" | "enriching" | "queued" | "engaged" | "mql" | "sql" | "opportunity" | "won" | "lost";
   revenue: number | null;
+  customer: boolean;
+  dnc: boolean;
+  /** Days since a Business Consultant rejected it, if ever. */
+  rejectDays: number | null;
+  routing: Routing | null;
   createdAt: string;
 }
 
@@ -107,9 +271,78 @@ export interface ScoredAccount extends Account {
   signalScore: number;
   value: ValueBand;
   tier: Tier;
+  freshestSignalDays: number | null;
   mqlReady: boolean;
   mqlBlockers: string[];
 }
+
+export type Field = "tier" | "fit" | "signal" | "committee" | "freshDays" | "stage" | "source" | "vertical" | "state" | "employees" | "dnc" | "customer" | "rejectDays" | "signalType" | "value";
+export type Op = "is" | "is not" | ">=" | "<=" | "in" | "includes" | "is true";
+export interface Condition {
+  field: Field;
+  op: Op;
+  value?: string | number | string[];
+}
+
+export interface RoutingRule {
+  id: string;
+  name: string;
+  on: boolean;
+  /** All of these must match... */
+  when: Condition[];
+  /** ...or any of these. */
+  any?: Condition[];
+  then: { dest: Destination; reason?: string; agent?: string; thaw?: string };
+}
+
+export interface List {
+  id: string;
+  name: string;
+  color: string;
+  type: "smart" | "static";
+  description: string;
+  cadence: string;
+  owner: string;
+  conditions: Condition[];
+  accountIds: string[];
+}
+
+/* ---------- 5. Pods ---------- */
+
+export interface Pod {
+  id: string;
+  name: string;
+  kind: "SDR" | "BDR" | "BC";
+  lead: string;
+  members: string[];
+  capacity: number;
+  focus: string[];
+}
+
+/* ---------- 6. Control Tower ---------- */
+
+export interface TowerSnapshot {
+  updatedAt: string;
+  updatedBy: string;
+  model: string | null;
+  metrics: {
+    universe: number;
+    tiers: Record<Tier, number>;
+    destinations: Record<Destination, number>;
+    funnel: { stage: string; count: number }[];
+    mqls: number;
+    won: number;
+    revenue: number;
+    revenuePer100Mqls: number | null;
+    mqlsPerWin: number | null;
+    pods: { id: string; name: string; load: number; capacity: number }[];
+    sources: { source: Source; accounts: number; tierA: number; won: number }[];
+    plays: { id: string; name: string; accounts: number; sqlRate: number | null }[];
+  };
+  commentary: string[];
+}
+
+/* ---------- Expert board ---------- */
 
 export interface AdvisorTake {
   headline: string;
@@ -129,7 +362,19 @@ export interface BoardSession {
 }
 
 export interface Database {
-  workspace: Workspace;
+  version: 2;
+  org: { name: string; humans: { role: string; name: string }[] };
+  gtms: Gtm[];
+  squads: Squad[];
+  bots: Bot[];
+  guardrails: Guardrail[];
+  connections: Connection[];
   accounts: Account[];
+  lists: List[];
+  rules: RoutingRule[];
+  pods: Pod[];
+  approvals: Approval[];
+  activity: Activity[];
+  tower: TowerSnapshot | null;
   sessions: BoardSession[];
 }

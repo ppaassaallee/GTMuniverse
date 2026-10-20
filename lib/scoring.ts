@@ -1,4 +1,4 @@
-import type { Account, FitInputs, ScoredAccount, Tier, ValueBand, Workspace } from "./types";
+import type { Account, FitInputs, Gtm, ScoredAccount, Tier, ValueBand } from "./types";
 
 // Fit weights follow the Solvo GTM Engineering System: vertical 30, size and role mix 25,
 // geography 15, operations intensity 15, historical performance 15.
@@ -10,7 +10,10 @@ export const FIT_WEIGHTS: Record<keyof FitInputs, number> = {
   historicalPerformance: 15,
 };
 
+const DAY = 86_400_000;
 const clamp01 = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
+
+export const daysSince = (iso: string, now: Date) => Math.floor((now.getTime() - new Date(iso).getTime()) / DAY);
 
 export function fitScore(fit: FitInputs): number {
   let total = 0;
@@ -18,31 +21,24 @@ export function fitScore(fit: FitInputs): number {
   return Math.round(total);
 }
 
-const DAY = 86_400_000;
-
-/** Sum of fresh signal weights, capped at 100. Signals older than the decay window count for nothing. */
-export function signalScore(account: Pick<Account, "signals">, ws: Pick<Workspace, "signalTypes" | "signalDecayDays">, now = new Date()): number {
-  const types = new Map(ws.signalTypes.map((t) => [t.id, t]));
-  const fresh = account.signals.filter((s) => {
-    const age = (now.getTime() - new Date(s.date).getTime()) / DAY;
-    return age >= 0 && age <= ws.signalDecayDays && types.has(s.typeId);
-  });
-  // Count each signal type once, so three hiring posts don't triple the score.
+/** Sum of fresh signal weights, each type once, capped at 100. Modifiers need a base signal. */
+export function signalScore(account: Pick<Account, "signals">, gtm: Pick<Gtm, "signalTypes" | "signalDecayDays">, now = new Date()): number {
+  const types = new Map(gtm.signalTypes.map((t) => [t.id, t]));
   const seen = new Set<string>();
   let base = 0;
   let modifiers = 0;
-  for (const s of fresh) {
-    if (seen.has(s.typeId)) continue;
+  for (const s of account.signals) {
+    const age = daysSince(s.date, now);
+    const t = types.get(s.typeId);
+    if (!t || age < 0 || age > gtm.signalDecayDays || seen.has(s.typeId)) continue;
     seen.add(s.typeId);
-    const t = types.get(s.typeId)!;
     if (t.modifier) modifiers += t.weight;
     else base += t.weight;
   }
-  if (base === 0) return 0;
-  return Math.min(100, base + modifiers);
+  return base === 0 ? 0 : Math.min(100, base + modifiers);
 }
 
-export function tierFor(fit: number, signal: number, th: Workspace["thresholds"]): Tier {
+export function tierFor(fit: number, signal: number, th: Gtm["thresholds"]): Tier {
   const hiFit = fit >= th.fit;
   const hiSignal = signal >= th.signal;
   if (hiFit && hiSignal) return "A";
@@ -58,38 +54,46 @@ export function valueBand(seats: number | null): ValueBand {
   return "low";
 }
 
-export function scoreAccount(a: Account, ws: Workspace, now = new Date()): ScoredAccount {
+export function scoreAccount(a: Account, gtm: Gtm, now = new Date()): ScoredAccount {
   const f = fitScore(a.fit);
-  const s = signalScore(a, ws, now);
-  const tier = tierFor(f, s, ws.thresholds);
+  const s = signalScore(a, gtm, now);
+  const tier = tierFor(f, s, gtm.thresholds);
+  const ages = a.signals.map((x) => daysSince(x.date, now)).filter((d) => d >= 0);
   // MQL gate: Tier A, at least two buying-committee members, and a play assigned.
   const mqlBlockers: string[] = [];
   if (tier !== "A") mqlBlockers.push("Not Tier A");
   if (a.committee.length < 2) mqlBlockers.push("Fewer than 2 committee members");
   if (!a.brief?.playId) mqlBlockers.push("No play assigned");
-  return { ...a, fitScore: f, signalScore: s, value: valueBand(a.estimatedSeats), tier, mqlReady: mqlBlockers.length === 0, mqlBlockers };
+  return {
+    ...a,
+    fitScore: f,
+    signalScore: s,
+    value: valueBand(a.estimatedSeats),
+    tier,
+    freshestSignalDays: ages.length ? Math.min(...ages) : null,
+    mqlReady: mqlBlockers.length === 0,
+    mqlBlockers,
+  };
 }
 
 const TIER_ORDER: Record<Tier, number> = { A: 0, B: 1, C: 2, Park: 3 };
 const VALUE_ORDER: Record<ValueBand, number> = { high: 0, medium: 1, low: 2 };
 
-/** Priority order for the work queue: tier, then value, then signal, then fit. */
-export function prioritize(list: ScoredAccount[]): ScoredAccount[] {
+/** Work-queue order: tier, then value, then signal, then fit. */
+export function prioritize<T extends ScoredAccount>(list: T[]): T[] {
   return [...list].sort(
-    (a, b) =>
-      TIER_ORDER[a.tier] - TIER_ORDER[b.tier] ||
-      VALUE_ORDER[a.value] - VALUE_ORDER[b.value] ||
-      b.signalScore - a.signalScore ||
-      b.fitScore - a.fitScore,
+    (a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier] || VALUE_ORDER[a.value] - VALUE_ORDER[b.value] || b.signalScore - a.signalScore || b.fitScore - a.fitScore,
   );
 }
 
+export const MQL_STAGES: Account["stage"][] = ["mql", "sql", "opportunity", "won", "lost"];
+
 /** The operating metric: closed-won revenue per 100 MQLs. */
-export function revenuePer100Mqls(accounts: Account[]): { mqls: number; won: number; revenue: number; per100: number | null } {
-  const reachedMql = accounts.filter((a) => a.stage !== "universe");
-  const won = accounts.filter((a) => a.stage === "won");
-  const revenue = won.reduce((s, a) => s + (a.revenue || 0), 0);
-  return { mqls: reachedMql.length, won: won.length, revenue, per100: reachedMql.length ? Math.round((revenue / reachedMql.length) * 100) : null };
+export function revenuePer100Mqls(accounts: Pick<Account, "stage" | "revenue">[]) {
+  const mqls = accounts.filter((a) => MQL_STAGES.includes(a.stage)).length;
+  const wonList = accounts.filter((a) => a.stage === "won");
+  const revenue = wonList.reduce((s, a) => s + (a.revenue || 0), 0);
+  return { mqls, won: wonList.length, revenue, per100: mqls ? Math.round((revenue / mqls) * 100) : null };
 }
 
 export function normalizeDomain(input: string): string {
