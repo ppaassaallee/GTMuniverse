@@ -52,8 +52,8 @@ People and Grokbots make changes through the same screens, and every change goes
 ## Sign-in
 
 - **People and Grokbots** each sign in with one access code. Only the code's SHA-256 is stored, and the code is shown once when it's issued. Issuing a new code or revoking one ends that member's existing sessions.
-- **First sign-in:** set `BOLDR_ADMIN_CODE` on the server. The first person (the Head of GTM) signs in with it, then issues codes from **Squads → Who can sign in**.
-- **Session cookies** are HMAC-signed with `BOLDR_SECRET`. If it isn't set, a random secret is generated and kept in the data store.
+- **First sign-in:** set `BOLDR_ADMIN_CODE` on the server (any length, at least 8 characters). The first person (the Head of GTM) signs in with it, then issues codes from **Squads → Who can sign in**.
+- **Session cookies** are HMAC-signed with `BOLDR_SECRET` when it has 32+ characters. Otherwise a random secret is generated and kept in the data store.
 
 ## Run it
 
