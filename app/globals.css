@@ -261,3 +261,5 @@ details summary { cursor: pointer; }
 .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .checks label, label.checks { display: inline-flex; gap: 6px; align-items: center; font: 400 13px/1.4 var(--body); letter-spacing: normal; text-transform: none; margin: 0; color: var(--ink); }
 fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+.build-tag { font-family: var(--mono); font-size: 11px; color: var(--rail-ink); border: 1px solid rgba(255,255,255,.18); border-radius: 6px; padding: 2px 7px; white-space: nowrap; }
+.build-corner { position: fixed; top: 12px; right: 16px; }

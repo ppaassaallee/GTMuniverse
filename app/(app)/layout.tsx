@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { signOut } from "@/app/actions";
 import { NavLinks, type NavItem } from "@/components/NavLinks";
-import { requireMember } from "@/lib/auth";
+import { deploymentInfo, requireMember } from "@/lib/auth";
 import { scoreAll } from "@/lib/routing";
 import { readDb } from "@/lib/store";
 
@@ -37,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <span>{me.name}{me.kind === "bot" ? " · Grokbot" : ""}</span>
             <button type="submit">Sign out</button>
           </form>
+          <span className="build-tag">Build {deploymentInfo().commit || "local"}</span>
         </div>
       </header>
       <div className="app">

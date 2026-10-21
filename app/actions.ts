@@ -189,7 +189,7 @@ export async function signIn(_: ActionState, form: FormData): Promise<ActionStat
       const problem = adminCodeProblem();
       if (problem) return { error: problem };
       const { adminCodeLength } = deploymentInfo();
-      return { error: `That doesn't match BOLDR_ADMIN_CODE on this server. The server's code has ${adminCodeLength} characters; you entered ${code.length}. Check for a typo or a browser autofill, or reset the variable and redeploy.` };
+      return { error: `That doesn't match BOLDR_ADMIN_CODE on this server. You typed ${code.length} characters, but the code set on the server is ${adminCodeLength} characters long. Check for a typo, or change the variable in your host and redeploy (any length from 8 characters works).` };
     }
     return { error: "That code isn't valid. Ask the Head of GTM for a new one." };
   }
