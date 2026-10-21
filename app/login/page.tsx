@@ -17,7 +17,7 @@ export default async function Login() {
         <h1>Sign in</h1>
         <p className="muted small" style={{ margin: 0 }}>People and Grokbots sign in the same way, with their own access code. Everything a Grokbot changes passes the guardrails and is logged under its name.</p>
         <ActionForm action={signIn} submitLabel="Sign in" pendingLabel="Signing in…">
-          <div><label htmlFor="code">Access code</label><input id="code" name="code" type="password" autoComplete="off" required autoFocus /></div>
+          <div><label htmlFor="code">Access code</label><input id="code" name="code" type="text" autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} required autoFocus /></div>
         </ActionForm>
         {firstRun && problem ? <p className="notice small" style={{ margin: 0 }}><b>Setup:</b> {problem}</p> : null}
         {firstRun && !problem ? <p className="notice small" style={{ margin: 0 }}>First time? {db.org.humans[0]?.name} signs in with the admin code set as <span className="code">BOLDR_ADMIN_CODE</span> on the server, then issues codes for people and Grokbots from Squads.</p> : null}

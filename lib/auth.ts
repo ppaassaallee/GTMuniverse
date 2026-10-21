@@ -11,6 +11,8 @@ import type { Database, Member } from "./types";
 
 export const COOKIE = "boldr_session";
 const MAX_AGE = 60 * 60 * 24 * 14;
+/** Shortest admin code accepted. Any longer length is fine. */
+export const MIN_CODE_LENGTH = 8;
 
 export const hashCode = (code: string) => createHash("sha256").update(code.trim()).digest("hex");
 export const newCode = () => `bdr-${randomBytes(18).toString("base64url")}`;
@@ -27,21 +29,23 @@ function rawAdminCode(): string {
   return (process.env.BOLDR_ADMIN_CODE || "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
 }
 
-/** The admin code from the environment. Null when unset or shorter than 12 characters. */
+/** The admin code from the environment. Null when unset or shorter than MIN_CODE_LENGTH. */
 export function adminCode(): string | null {
   const code = rawAdminCode();
-  return code.length >= 12 ? code : null;
+  return code.length >= MIN_CODE_LENGTH ? code : null;
 }
 
 /** Why the admin code can't be used, for the sign-in page. */
 export function adminCodeProblem(): string | null {
   const raw = rawAdminCode();
   if (!raw) return "BOLDR_ADMIN_CODE isn't set on the server. Add it in your host's environment settings and redeploy.";
-  if (raw.length < 12) return `BOLDR_ADMIN_CODE on the server is only ${raw.length} characters; it needs at least 12. Make it longer and redeploy.`;
+  if (raw.length < MIN_CODE_LENGTH) return `BOLDR_ADMIN_CODE on the server is only ${raw.length} characters; it needs at least ${MIN_CODE_LENGTH}. Make it longer and redeploy.`;
   return null;
 }
 
-const secret = (db: Database) => process.env.BOLDR_SECRET || db.secret;
+// A short BOLDR_SECRET would let anyone guess it and forge a session, so it only counts from 32 characters;
+// below that the random secret generated into the data store is used instead.
+const secret = (db: Database) => ((process.env.BOLDR_SECRET || "").length >= 32 ? process.env.BOLDR_SECRET! : db.secret);
 const sign = (db: Database, payload: string) => createHmac("sha256", secret(db)).update(payload).digest("base64url");
 
 /** Which member an access code belongs to, or null. */
