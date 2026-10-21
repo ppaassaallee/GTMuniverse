@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { COOKIE, cookieOptions, hashCode, memberForCode, members, newCode, requireMember, sessionValue } from "@/lib/auth";
+import { COOKIE, adminCodeProblem, cookieOptions, deploymentInfo, hashCode, memberForCode, members, newCode, requireMember, sessionValue } from "@/lib/auth";
 import { ACTION_LABEL, evaluate, usedToday } from "@/lib/guardrails";
 import { routeAll } from "@/lib/routing";
 import { normalizeDomain } from "@/lib/scoring";
@@ -183,13 +183,22 @@ export async function signIn(_: ActionState, form: FormData): Promise<ActionStat
   if (!code) return { error: "Enter your access code." };
   const db = await readDb();
   const m = memberForCode(db, code);
-  if (!m) return { error: "That code isn't valid. Ask the Head of GTM for a new one." };
+  if (!m) {
+    // Before anyone has a code, the admin code is the only way in: say exactly why it didn't match.
+    if (!db.logins.length) {
+      const problem = adminCodeProblem();
+      if (problem) return { error: problem };
+      const { adminCodeLength } = deploymentInfo();
+      return { error: `That doesn't match BOLDR_ADMIN_CODE on this server. The server's code has ${adminCodeLength} characters; you entered ${code.length}. Check for a typo or a browser autofill, or reset the variable and redeploy.` };
+    }
+    return { error: "That code isn't valid. Ask the Head of GTM for a new one." };
+  }
   await mutate((d) => {
     const l = d.logins.find((x) => x.memberId === m.id);
     if (l) l.lastSignInAt = new Date().toISOString();
     log(d, m.name, m.kind === "bot" ? "Signed in (Grokbot)." : "Signed in.", "info");
   });
-  (await cookies()).set(COOKIE, sessionValue(db, m.id), cookieOptions);
+  (await cookies()).set(COOKIE, sessionValue(db, m.id), await cookieOptions());
   redirect("/");
 }
 
