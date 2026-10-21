@@ -28,7 +28,7 @@ export default async function SquadPage({ params, searchParams }: { params: Prom
     <>
       <p className="small" style={{ margin: 0 }}><Link href="/squads">← Squads</Link></p>
       <PageHead eyebrow={`Squad · works on ${gtm.name}`} title={squad.name} sub={squad.mission}>
-        <Link className="btn ghost" href={`/squads/${id}?bot=new`}>Add a Grokbot</Link>
+        <Link className="btn ghost" href={`/squads/${id}?bot=new`}>Add a GTMBot</Link>
       </PageHead>
 
       <div className="grid3">
@@ -47,9 +47,9 @@ export default async function SquadPage({ params, searchParams }: { params: Prom
 
       <div className="split">
         <section className="panel">
-          <div className="panel-h"><h2>{bot ? `Edit ${bot.name}` : "Add a Grokbot to this squad"}</h2>{bot ? <span className="muted small">{AUTONOMY[bot.autonomy]}</span> : null}</div>
-          <p className="muted small" style={{ margin: 0 }}>This is the registry entry for one of your Grokbots. The bot itself runs on Grok outside Boldr; here you decide what it may do when it signs in.</p>
-          <ActionForm key={bot?.id || "new"} action={saveBot} submitLabel={bot ? "Save changes" : "Add Grokbot"} pendingLabel="Saving…">
+          <div className="panel-h"><h2>{bot ? `Edit ${bot.name}` : "Add a GTMBot to this squad"}</h2>{bot ? <span className="muted small">{AUTONOMY[bot.autonomy]}</span> : null}</div>
+          <p className="muted small" style={{ margin: 0 }}>This is the registry entry for one of your GTMBots. The bot itself runs outside Horizon GTM; here you decide what it may do when it signs in.</p>
+          <ActionForm key={bot?.id || "new"} action={saveBot} submitLabel={bot ? "Save changes" : "Add GTMBot"} pendingLabel="Saving…">
             <input type="hidden" name="botId" value={bot?.id || ""} />
             <input type="hidden" name="squadId" value={id} />
             <div className="row">
@@ -58,7 +58,7 @@ export default async function SquadPage({ params, searchParams }: { params: Prom
                 <label htmlFor="reportsTo">Reports to</label>
                 <select id="reportsTo" name="reportsTo" defaultValue={bot?.reportsTo || bots.find((b) => b.isLead)?.id}>
                   {db.org.humans.map((h) => <option key={h.id} value={`human:${h.role}`}>{h.name} · {h.role}</option>)}
-                  {db.bots.filter((b) => b.id !== bot?.id).map((b) => <option key={b.id} value={b.id}>{b.name} (Grokbot)</option>)}
+                  {db.bots.filter((b) => b.id !== bot?.id).map((b) => <option key={b.id} value={b.id}>{b.name} (GTMBot)</option>)}
                 </select>
               </div>
             </div>
@@ -78,7 +78,7 @@ export default async function SquadPage({ params, searchParams }: { params: Prom
           <div style={{ display: "grid", gap: 14, alignContent: "start" }}>
             <section className="panel">
               <h2>{bot.name}'s sign-in</h2>
-              <span className="small">{login ? <>Code ending <span className="code">…{login.hint}</span>, issued by {login.issuedBy} {ago(login.issuedAt)}. {login.lastSignInAt ? `Last signed in ${ago(login.lastSignInAt)}.` : "Hasn't signed in yet."}</> : "No code yet. Issue one and give it to the Grokbot so it can sign in."}</span>
+              <span className="small">{login ? <>Code ending <span className="code">…{login.hint}</span>, issued by {login.issuedBy} {ago(login.issuedAt)}. {login.lastSignInAt ? `Last signed in ${ago(login.lastSignInAt)}.` : "Hasn't signed in yet."}</> : "No code yet. Issue one and give it to the GTMBot so it can sign in."}</span>
               <ActionForm action={issueCode} submitLabel={login ? "Issue a new code" : "Issue a code"} secondary><input type="hidden" name="memberId" value={bot.id} /></ActionForm>
               {login ? <ActionForm action={revokeCode} submitLabel="Revoke sign-in" secondary><input type="hidden" name="memberId" value={bot.id} /></ActionForm> : null}
             </section>
@@ -89,7 +89,7 @@ export default async function SquadPage({ params, searchParams }: { params: Prom
               <span className="label" style={{ margin: 0 }}>May do</span>
               <span className="chips">{bot.allowedActions.map((a) => <span key={a} className="pill ok">{ACTION_LABEL[a]}</span>)}</span>
               <span className="label" style={{ margin: 0 }}>Connections granted</span>
-              <span className="chips">{bot.connections.length ? bot.connections.map((c) => <span key={c} className={`pill ${conns.get(c)?.status === "connected" ? "ok" : "no"}`}>{conns.get(c)?.name} · {conns.get(c)?.status === "connected" ? "connected" : "not connected"}</span>) : <span className="muted small">None. Works on Boldr data only.</span>}</span>
+              <span className="chips">{bot.connections.length ? bot.connections.map((c) => <span key={c} className={`pill ${conns.get(c)?.status === "connected" ? "ok" : "no"}`}>{conns.get(c)?.name} · {conns.get(c)?.status === "connected" ? "connected" : "not connected"}</span>) : <span className="muted small">None. Works on Horizon GTM data only.</span>}</span>
               <span className="label" style={{ margin: 0 }}>Daily limit</span>
               <span className="small">{bot.dailyLimit} actions</span>
             </section>
@@ -101,7 +101,7 @@ export default async function SquadPage({ params, searchParams }: { params: Prom
         <h2>Squad activity</h2>
         <ul className="list feed">
           {db.activity.filter((a) => names.has(a.actor)).slice(0, 15).map((a) => <li key={a.id}><span className={`kind kind-${a.kind}`}>{a.kind}</span><span><b>{a.actor}</b> {a.text} <span className="muted small">· {ago(a.at)}</span></span></li>)}
-          {!db.activity.some((a) => names.has(a.actor)) ? <li className="muted">Nothing yet. Activity appears when this squad's Grokbots sign in and work.</li> : null}
+          {!db.activity.some((a) => names.has(a.actor)) ? <li className="muted">Nothing yet. Activity appears when this squad's GTMBots sign in and work.</li> : null}
         </ul>
       </section>
     </>

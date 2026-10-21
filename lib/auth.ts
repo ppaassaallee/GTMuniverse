@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { readDb } from "./store";
 import type { Database, Member } from "./types";
 
-// People and Grokbots sign in the same way: one access code each. The code is shown once,
+// People and GTMBots sign in the same way: one access code each. The code is shown once,
 // only its hash is stored, and a session cookie (HMAC-signed) carries who is acting.
 // BOLDR_ADMIN_CODE lets the first person in (the Head of GTM) to issue everyone else's codes.
 

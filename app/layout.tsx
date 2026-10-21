@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Boldr",
-  description: "The GTM management layer your Grokbots and your people work in: GTMs, squads, connections, universe, pods and the Control Tower.",
+  title: "Horizon GTM",
+  description: "The GTM management layer your GTMBots and your people work in: GTMs, squads, connections, universe, pods and the Control Tower.",
 };
 
 export const dynamic = "force-dynamic";

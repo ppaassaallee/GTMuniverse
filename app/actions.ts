@@ -12,8 +12,8 @@ import { mutate, newId, readDb } from "@/lib/store";
 import { computeTower } from "@/lib/tower";
 import type { Account, ActionType, Activity, Autonomy, Bot, CommitteeRole, Database, KnowledgeDoc, Member, ProposedAction } from "@/lib/types";
 
-// Boldr is a management layer. People and Grokbots sign in and use the same screens.
-// Every change goes through perform(): a person's change applies directly; a Grokbot's change
+// Horizon GTM is a management layer. People and GTMBots sign in and use the same screens.
+// Every change goes through perform(): a person's change applies directly; a GTMBot's change
 // passes the guardrails first and is blocked, queued for a person, or applied.
 
 export type ActionState = { error?: string; ok?: string } | null;
@@ -125,7 +125,7 @@ function applyAction(db: Database, action: ProposedAction, actor: string): strin
     case "send_email":
     case "linkedin_prepare":
     case "linkedin_send":
-      return `Cleared for a person to send to ${a.name}: “${text(p.subject, 120) || action.summary}”. Boldr never sends anything itself.`;
+      return `Cleared for a person to send to ${a.name}: “${text(p.subject, 120) || action.summary}”. Horizon GTM never sends anything itself.`;
     default:
       return `${ACTION_LABEL[action.type] || action.type}: noted.`;
   }
@@ -142,7 +142,7 @@ async function perform(action: ProposedAction): Promise<ActionState> {
         return { ok: msg };
       }
       const bot = db.bots.find((b) => b.id === me.id);
-      if (!bot) throw new Invalid("This Grokbot no longer exists.");
+      if (!bot) throw new Invalid("This GTMBot no longer exists.");
       const account = db.accounts.find((x) => x.id === action.accountId) || null;
       const verdict = evaluate(action, { bot, bots: db.bots, connections: db.connections, account, usedToday: usedToday(db.activity, bot.name) });
       if (verdict.decision === "block") {
@@ -189,14 +189,14 @@ export async function signIn(_: ActionState, form: FormData): Promise<ActionStat
       const problem = adminCodeProblem();
       if (problem) return { error: problem };
       const { adminCodeLength } = deploymentInfo();
-      return { error: `That doesn't match BOLDR_ADMIN_CODE on this server. The server's code has ${adminCodeLength} characters; you entered ${code.length}. Check for a typo or a browser autofill, or reset the variable and redeploy.` };
+      return { error: `That doesn't match BOLDR_ADMIN_CODE on this server. You typed ${code.length} characters, but the code set on the server is ${adminCodeLength} characters long. Check for a typo, or change the variable in your host and redeploy (any length from 8 characters works).` };
     }
     return { error: "That code isn't valid. Ask the Head of GTM for a new one." };
   }
   await mutate((d) => {
     const l = d.logins.find((x) => x.memberId === m.id);
     if (l) l.lastSignInAt = new Date().toISOString();
-    log(d, m.name, m.kind === "bot" ? "Signed in (Grokbot)." : "Signed in.", "info");
+    log(d, m.name, m.kind === "bot" ? "Signed in (GTMBot)." : "Signed in.", "info");
   });
   (await cookies()).set(COOKIE, sessionValue(db, m.id), await cookieOptions());
   redirect("/");
@@ -237,7 +237,7 @@ export async function revokeCode(_: ActionState, form: FormData): Promise<Action
   return { ok: "Revoked. Their sessions end on the next click." };
 }
 
-/* ---------- Squads (registry of your Grokbots) ---------- */
+/* ---------- Squads (registry of your GTMBots) ---------- */
 
 const ALL_ACTIONS = Object.keys(ACTION_LABEL) as ActionType[];
 
@@ -247,13 +247,13 @@ export async function saveBot(_: ActionState, form: FormData): Promise<ActionSta
   const id = text(form.get("botId"), 60);
   const name = text(form.get("name"), 40);
   const squadId = text(form.get("squadId"), 60);
-  if (!name) return { error: "Give the Grokbot a name." };
+  if (!name) return { error: "Give the GTMBot a name." };
   const res = await mutate((db) => {
     if (!db.squads.some((s) => s.id === squadId)) return { error: "Unknown squad." };
     const reportsTo = text(form.get("reportsTo"), 80);
     const validBoss = reportsTo.startsWith("human:") ? db.org.humans.some((h) => `human:${h.role}` === reportsTo) : db.bots.some((b) => b.id === reportsTo && b.id !== id);
-    if (!validBoss) return { error: "Pick who this Grokbot reports to." };
-    if (db.bots.some((b) => b.name.toLowerCase() === name.toLowerCase() && b.id !== id)) return { error: `There's already a Grokbot called ${name}.` };
+    if (!validBoss) return { error: "Pick who this GTMBot reports to." };
+    if (db.bots.some((b) => b.name.toLowerCase() === name.toLowerCase() && b.id !== id)) return { error: `There's already a GTMBot called ${name}.` };
     const autonomy = (["suggest", "approve", "act"].includes(String(form.get("autonomy"))) ? form.get("autonomy") : "suggest") as Autonomy;
     const bot: Bot = {
       id: id || newId("b"),
@@ -271,7 +271,7 @@ export async function saveBot(_: ActionState, form: FormData): Promise<ActionSta
       if (old.name !== bot.name) for (const a of db.activity) if (a.actor === old.name) a.actor = bot.name;
       db.bots[i] = bot;
     } else db.bots.push(bot);
-    log(db, me.name, `${i >= 0 ? "Updated" : "Added"} Grokbot ${bot.name}.`, "human");
+    log(db, me.name, `${i >= 0 ? "Updated" : "Added"} GTMBot ${bot.name}.`, "human");
     return { ok: `${bot.name} saved.`, squadId, id: bot.id };
   });
   if ("error" in res) return { error: res.error };
@@ -294,9 +294,9 @@ export async function decideApproval(_: ActionState, form: FormData): Promise<Ac
       ap.decidedBy = me.name;
       if (!approve) { ap.status = "rejected"; log(db, me.name, `Rejected: ${ap.action.summary}`, "human"); return "Rejected."; }
       const bot = db.bots.find((b) => b.id === ap.botId);
-      const out = applyAction(db, ap.action, bot?.name || "Grokbot");
+      const out = applyAction(db, ap.action, bot?.name || "GTMBot");
       ap.status = "approved";
-      log(db, me.name, `Approved ${bot?.name || "Grokbot"}: ${out}`, "human");
+      log(db, me.name, `Approved ${bot?.name || "GTMBot"}: ${out}`, "human");
       return out;
     });
     refresh();
@@ -416,7 +416,7 @@ export async function addKnowledge(_: ActionState, form: FormData): Promise<Acti
     log(db, me.name, `Added “${title}” to the ${g.name} knowledge base.`, "human");
   });
   refresh();
-  return { ok: "Added. Your Grokbots read it on their next sign-in." };
+  return { ok: "Added. Your GTMBots read it on their next sign-in." };
 }
 
 /* ---------- Control Tower ---------- */

@@ -4,7 +4,7 @@ import { PageHead } from "@/components/ui";
 import { readDb } from "@/lib/store";
 
 const ACCESS = {
-  delegated: { label: "Grokbots act for you", text: "Your Grokbots sign in to the tool with the scopes you grant; only granted bots may use it." },
+  delegated: { label: "GTMBots act for you", text: "Your GTMBots sign in to the tool with the scopes you grant; only granted bots may use it." },
   file: { label: "Shared files only", text: "Bots see only the sheets or folders you share with the squad." },
   "human-only": { label: "Human channel", text: "Bots prepare; a person does the action in the tool." },
 };
@@ -13,7 +13,7 @@ export default async function Connections() {
   const db = await readDb();
   return (
     <>
-      <PageHead eyebrow="Stage 3 · Connections" title="What the squads can reach" sub="Every tool your Grokbots work in, how they may reach it, and which bots hold access. Your Grokbots sign in to these tools themselves; Boldr keeps the record of who is allowed, and the guardrails block any change that relies on a connection a bot wasn't granted or that is switched off here." />
+      <PageHead eyebrow="Stage 3 · Connections" title="What the squads can reach" sub="Every tool your GTMBots work in, how they may reach it, and which bots hold access. Your GTMBots sign in to these tools themselves; Horizon GTM keeps the record of who is allowed, and the guardrails block any change that relies on a connection a bot wasn't granted or that is switched off here." />
       <div className="grid3">
         {db.connections.map((c) => {
           const bots = db.bots.filter((b) => b.connections.includes(c.id));

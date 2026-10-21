@@ -20,7 +20,7 @@ export default async function Home() {
   ];
   return (
     <>
-      <PageHead eyebrow={`${db.org.name} on Boldr`} title="Your GTM management layer" sub="Define how you go to market, register the Grokbots that do the work, keep one universe of accounts, hand the right ones to your people, and measure what it produces. Your Grokbots sign in here to read the playbook and post their work; the guardrails decide what sticks." />
+      <PageHead eyebrow={`${db.org.name} on Horizon GTM`} title="Your GTM management layer" sub="Define how you go to market, register the GTMBots that do the work, keep one universe of accounts, hand the right ones to your people, and measure what it produces. Your GTMBots sign in here to read the playbook and post their work; the guardrails decide what sticks." />
 
       <div className="flow" aria-label="The six stages">
         {stages.map((s, i) => (

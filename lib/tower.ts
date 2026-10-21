@@ -3,7 +3,7 @@ import { scoreAll } from "./routing";
 import type { Database, Destination, Source, Tier, TowerSnapshot } from "./types";
 
 // The Control Tower's numbers are computed in code so they're exact and repeatable.
-// The Analytics squad's Grokbot signs in, refreshes the numbers and posts its commentary.
+// The Analytics squad's GTMBot signs in, refreshes the numbers and posts its commentary.
 
 export const SOURCE_LABEL: Record<Source, string> = {
   AP: "Apollo core",

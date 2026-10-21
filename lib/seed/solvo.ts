@@ -109,8 +109,8 @@ const usNearshore: Gtm = {
     { id: "bp7", source: "Apollo", area: "Deliverability", practice: "Warm up new mailboxes for weeks before sequencing, and don't send cold email from the primary domain." },
     { id: "bp8", source: "Apollo", area: "Cadence", practice: "Start with a short multichannel cadence (email, then email and call, calls with voicemail, final email around day 10) and add steps only when results justify them." },
     { id: "bp9", source: "Apollo", area: "Testing", practice: "A/B test each step of a sequence and personalise by prospect tier rather than writing one email for everyone." },
-    { id: "bp10", source: "Boldr", area: "Reasons", practice: "Every account arrives with a reason: good company, why now, commercial hypothesis and recommended motion." },
-    { id: "bp11", source: "Boldr", area: "Sources", practice: "Judge every lead source on cost per SQL and pipeline per 100 MQLs, never on records delivered." },
+    { id: "bp10", source: "Horizon GTM", area: "Reasons", practice: "Every account arrives with a reason: good company, why now, commercial hypothesis and recommended motion." },
+    { id: "bp11", source: "Horizon GTM", area: "Sources", practice: "Judge every lead source on cost per SQL and pipeline per 100 MQLs, never on records delivered." },
   ],
   knowledge: [
     { id: "kb1", kind: "Value proposition", title: "Why nearshore with Solvo", body: "Add capacity in US time zones at a fraction of US cost. Solvo recruits, onboards and retains; the client manages the work. Typical savings 50–70% per seat with ramp in 3–5 weeks.", updatedBy: "Valentina Ríos", updatedAt: "2026-10-01T00:00:00Z" },
@@ -185,7 +185,7 @@ const GUARDRAILS: Guardrail[] = [
   { id: "g6", name: "AI drafts, human sends", description: "Every external send waits for a person's approval.", kind: "approval" },
   { id: "g7", name: "Chain of command", description: "Routing, pod assignment and freezing by a non-lead bot escalate to the first human above it.", kind: "escalate" },
   { id: "g8", name: "Autonomy level", description: "Suggest-mode bots need approval for everything; approve-mode bots for any change.", kind: "approval" },
-  { id: "g9", name: "People own the rules", description: "Only people change GTM definitions, routing rules, squads, sign-ins and approvals. Grokbots read them.", kind: "block" },
+  { id: "g9", name: "People own the rules", description: "Only people change GTM definitions, routing rules, squads, sign-ins and approvals. GTMBots read them.", kind: "block" },
 ];
 
 const CONNECTIONS: Connection[] = [
@@ -357,9 +357,9 @@ export function seedDatabase(now = new Date()): Database {
     rules,
     pods,
     approvals: [],
-    activity: [{ id: "act_seed", at: now.toISOString(), actor: "Boldr", text: `Seeded the Solvo demo: ${accounts.length} accounts routed by ${rules.length} rules.`, kind: "info" }],
+    activity: [{ id: "act_seed", at: now.toISOString(), actor: "Horizon GTM", text: `Seeded the Solvo demo: ${accounts.length} accounts routed by ${rules.length} rules.`, kind: "info" }],
     tower: null,
   };
-  db.tower = computeTower(db, "Boldr", [], null, now);
+  db.tower = computeTower(db, "Horizon GTM", [], null, now);
   return db;
 }
