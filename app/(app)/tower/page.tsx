@@ -14,7 +14,7 @@ export default async function Tower() {
   const g = db.gtms[0];
   return (
     <>
-      <PageHead eyebrow="Stage 6 · Control Tower" title="Is the system producing revenue?" sub={`${g.northStar} is the number that runs the operation. Your Analytics Grokbot signs in, refreshes the numbers and posts what it sees.`} />
+      <PageHead eyebrow="Stage 6 · Control Tower" title="Is the system producing revenue?" sub={`${g.northStar} is the number that runs the operation. Your Analytics GTMBot signs in, refreshes the numbers and posts what it sees.`} />
       {!t ? <p className="notice">No snapshot yet.</p> : (
         <>
           <p className="muted small" style={{ margin: 0 }}>Numbers refreshed by <b>{t.updatedBy}</b> {ago(t.updatedAt)}. They're computed exactly from the universe, so nobody can type them in.{t.commentaryBy ? ` Findings posted by ${t.commentaryBy} ${ago(t.commentaryAt!)}.` : ""}</p>

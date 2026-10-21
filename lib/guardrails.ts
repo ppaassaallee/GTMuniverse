@@ -1,6 +1,6 @@
 import type { Account, ActionType, Activity, Bot, Connection, ProposedAction, Verdict } from "./types";
 
-// Every change a signed-in Grokbot makes passes through this check before anything happens.
+// Every change a signed-in GTMBot makes passes through this check before anything happens.
 // The order matters: hard blocks first, then the conditions that need a human, then autonomy.
 
 /** Actions that end in a message leaving the building. A person approves, whatever the bot's autonomy. */

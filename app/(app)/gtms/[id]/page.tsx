@@ -58,7 +58,7 @@ export default async function GtmPage({ params, searchParams }: { params: Promis
             <div className="kpi"><span className="label">ICP verticals</span><span className="n">{g.verticals.length}</span><span className="d">{g.personas.length} buyer personas</span></div>
             <div className="kpi"><span className="label">Plays</span><span className="n">{g.plays.length}</span><span className="d">{g.sequences.length} sequences · {g.scripts.length} scripts</span></div>
             <div className="kpi"><span className="label">Policies</span><span className="n">{g.policies.length}</span><span className="d">{g.policies.filter((p) => p.severity === "must").length} must-follow</span></div>
-            <div className="kpi"><span className="label">Squads on it</span><span className="n">{squads.length}</span><span className="d">{db.bots.filter((b) => squads.some((s) => s.id === b.squadId)).length} Grokbots</span></div>
+            <div className="kpi"><span className="label">Squads on it</span><span className="n">{squads.length}</span><span className="d">{db.bots.filter((b) => squads.some((s) => s.id === b.squadId)).length} GTMBots</span></div>
           </div>
           <div className="grid2">
             <section className="panel">
@@ -236,9 +236,9 @@ export default async function GtmPage({ params, searchParams }: { params: Promis
 
       {tab === "practices" ? (
         <div className="grid2">
-          {(["6sense", "ZoomInfo", "Apollo", "Boldr"] as const).map((src) => (
+          {(["6sense", "ZoomInfo", "Apollo", "Horizon GTM"] as const).map((src) => (
             <section key={src} className="panel">
-              <h2>{src === "Boldr" ? "From your GTM engineering system" : `From ${src}`}</h2>
+              <h2>{src === "Horizon GTM" ? "From your GTM engineering system" : `From ${src}`}</h2>
               <ul className="list">
                 {g.bestPractices.filter((b) => b.source === src).map((b) => (
                   <li key={b.id}><span className="label" style={{ margin: 0 }}>{b.area}</span><span className="small">{b.practice}</span></li>
@@ -251,7 +251,7 @@ export default async function GtmPage({ params, searchParams }: { params: Promis
 
       {tab === "knowledge" ? (
         <>
-          <p className="muted small" style={{ margin: 0 }}>What your Grokbots read before they act: value propositions, objection handling, case studies, competitors. People write it; Grokbots read it.</p>
+          <p className="muted small" style={{ margin: 0 }}>What your GTMBots read before they act: value propositions, objection handling, case studies, competitors. People write it; GTMBots read it.</p>
           <div className="kb">
             {g.knowledge.map((k) => (
               <article key={k.id}>

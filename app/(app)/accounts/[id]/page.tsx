@@ -60,7 +60,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
                 <div><span className="label">Play</span><p>{play ? `${play.id} · ${play.name}. ${play.firstTouch}` : "No play fits yet."}</p></div>
                 <div><span className="label">Next action</span><p><b>{a.brief.nextAction}</b></p></div>
               </div>
-            ) : <p className="muted" style={{ margin: 0 }}>No brief yet. Your Research Grokbot posts it here: why it fits, why now, who to contact, the play and the next action.</p>}
+            ) : <p className="muted" style={{ margin: 0 }}>No brief yet. Your Research GTMBot posts it here: why it fits, why now, who to contact, the play and the next action.</p>}
             <details>
               <summary className="small">{a.brief ? "Update the brief" : "Write the brief"}</summary>
               <ActionForm action={writeBrief} submitLabel="Save brief" secondary>
@@ -79,7 +79,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
 
           <section className="panel">
             <h2>First-touch draft</h2>
-            <p className="muted small" style={{ margin: 0 }}>A Grokbot's draft always waits in Approvals. A person sends it from your own email; Boldr never sends.</p>
+            <p className="muted small" style={{ margin: 0 }}>A GTMBot's draft always waits in Approvals. A person sends it from your own email; Horizon GTM never sends.</p>
             {drafts.map((d) => (
               <div key={d.id} className="notice" style={{ margin: 0 }}>
                 <b>{String(d.action.payload?.subject || d.action.summary)}</b> <span className={`pill ${d.status === "approved" ? "ok" : d.status === "rejected" ? "no" : "warn"}`}>{d.status}</span>

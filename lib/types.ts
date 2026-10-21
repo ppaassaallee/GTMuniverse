@@ -1,4 +1,4 @@
-// Boldr domain model. An organisation runs one or more GTMs; squads of Grokbots do the work
+// Horizon GTM domain model. An organisation runs one or more GTMs; squads of GTMBots do the work
 // under guardrails and a chain of command; humans in pods sell; the Control Tower measures.
 
 export type Tier = "A" | "B" | "C" | "Park";
@@ -71,12 +71,12 @@ export interface Policy {
 
 export interface BestPractice {
   id: string;
-  source: "6sense" | "ZoomInfo" | "Apollo" | "Boldr";
+  source: "6sense" | "ZoomInfo" | "Apollo" | "Horizon GTM";
   area: string;
   practice: string;
 }
 
-/** Knowledge the Grokbots read before they act: value props, objections, case studies, competitors. */
+/** Knowledge the GTMBots read before they act: value props, objections, case studies, competitors. */
 export interface KnowledgeDoc {
   id: string;
   kind: "Value proposition" | "Objection" | "Case study" | "Competitor" | "FAQ";
@@ -337,7 +337,7 @@ export interface Pod {
 export interface TowerSnapshot {
   updatedAt: string;
   updatedBy: string;
-  /** Which Grokbot wrote the commentary, and when. Numbers are always computed by Boldr. */
+  /** Which GTMBot wrote the commentary, and when. Numbers are always computed by Horizon GTM. */
   commentaryBy: string | null;
   commentaryAt: string | null;
   metrics: {
@@ -359,7 +359,7 @@ export interface TowerSnapshot {
 
 /* ---------- Sign-in ---------- */
 
-/** Anyone who signs in: a person, or one of your Grokbots. */
+/** Anyone who signs in: a person, or one of your GTMBots. */
 export interface Member {
   id: string;
   name: string;

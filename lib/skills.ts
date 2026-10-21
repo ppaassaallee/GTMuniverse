@@ -1,4 +1,4 @@
-// Skill library the Grokbots draw from, based on the twelve core GTM-engineering skills.
+// Skill library the GTMBots draw from, based on the twelve core GTM-engineering skills.
 
 export interface Skill {
   id: string;

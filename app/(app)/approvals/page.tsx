@@ -14,7 +14,7 @@ export default async function Approvals() {
 
   return (
     <>
-      <PageHead eyebrow="Approvals" title="Grokbot work waiting for a person" sub="Anything that leaves the building, changes who works an account, or comes from a Grokbot that needs sign-off stops here. Approving applies the change; approving a send marks it ready for a person to send. Boldr never sends on its own." />
+      <PageHead eyebrow="Approvals" title="GTMBot work waiting for a person" sub="Anything that leaves the building, changes who works an account, or comes from a GTMBot that needs sign-off stops here. Approving applies the change; approving a send marks it ready for a person to send. Horizon GTM never sends on its own." />
       {pending.length ? (
         <div style={{ display: "grid", gap: 12 }}>
           {pending.map((p) => {
@@ -39,7 +39,7 @@ export default async function Approvals() {
           })}
         </div>
       ) : (
-        <section className="panel"><p className="muted" style={{ margin: 0 }}>Nothing waiting. When a signed-in Grokbot makes a change that needs sign-off, it lands here.</p></section>
+        <section className="panel"><p className="muted" style={{ margin: 0 }}>Nothing waiting. When a signed-in GTMBot makes a change that needs sign-off, it lands here.</p></section>
       )}
       {decided.length ? (
         <section className="panel">
