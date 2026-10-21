@@ -22,14 +22,28 @@ export function members(db: Pick<Database, "org" | "bots">): Member[] {
   ];
 }
 
+/** The admin code from the environment, trimmed. Null when unset or shorter than 12 characters. */
+export function adminCode(): string | null {
+  const code = process.env.BOLDR_ADMIN_CODE?.trim();
+  return code && code.length >= 12 ? code : null;
+}
+
+/** Why the admin code can't be used, for the sign-in page. */
+export function adminCodeProblem(): string | null {
+  const raw = process.env.BOLDR_ADMIN_CODE?.trim();
+  if (!raw) return "BOLDR_ADMIN_CODE isn't set on the server. Add it in your host's environment settings and redeploy.";
+  if (raw.length < 12) return `BOLDR_ADMIN_CODE on the server is only ${raw.length} characters; it needs at least 12. Make it longer and redeploy.`;
+  return null;
+}
+
 const secret = (db: Database) => process.env.BOLDR_SECRET || db.secret;
 const sign = (db: Database, payload: string) => createHmac("sha256", secret(db)).update(payload).digest("base64url");
 
 /** Which member an access code belongs to, or null. */
 export function memberForCode(db: Database, code: string): Member | null {
   const h = hashCode(code);
-  const admin = process.env.BOLDR_ADMIN_CODE;
-  if (admin && admin.length >= 12 && safeEqual(h, hashCode(admin))) return members(db).find((m) => m.id === db.org.humans[0]?.id) || null;
+  const admin = adminCode();
+  if (admin && safeEqual(h, hashCode(admin))) return members(db).find((m) => m.id === db.org.humans[0]?.id) || null;
   const login = db.logins.find((l) => safeEqual(l.codeHash, h));
   return login ? members(db).find((m) => m.id === login.memberId) || null : null;
 }
@@ -56,7 +70,7 @@ export async function currentMember(): Promise<Member | null> {
   if (!safeEqual(sig, sign(db, `${memberId}.${iat}`))) return null;
   if (Date.now() - Number(iat) > MAX_AGE * 1000) return null;
   const login = db.logins.find((l) => l.memberId === memberId);
-  const isAdmin = !!process.env.BOLDR_ADMIN_CODE && memberId === db.org.humans[0]?.id;
+  const isAdmin = !!adminCode() && memberId === db.org.humans[0]?.id;
   if (!isAdmin && (!login || new Date(login.issuedAt).getTime() > Number(iat))) return null;
   return members(db).find((m) => m.id === memberId) || null;
 }
